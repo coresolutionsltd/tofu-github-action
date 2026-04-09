@@ -1,4 +1,4 @@
-name: PR Comment Smoke
+name: Comment Smoke
 
 on:
   workflow_call:
@@ -19,8 +19,8 @@ permissions:
   pull-requests: write
 
 jobs:
-  deploy-smoke:
-    name: Deploy Smoke
+  comment-smoke:
+    name: comment
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -33,9 +33,9 @@ jobs:
           workdir: test/valid
           env: dogfood-deploy
           steps: validate,plan,apply
-          summary-mode: redacted
+          summary-mode: off
           skip-plan-upload: true
-          comment-mode: ${{ inputs.decorate-pr && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && 'sticky' || 'off' }}
+          comment-mode: ${{ inputs.decorate-pr && 'sticky' || 'off' }}
           comment-identifier: ${{ inputs.comment-identifier }}
 
       - name: Run deploy smoke again to verify sticky updates
@@ -47,7 +47,7 @@ jobs:
           steps: validate,plan,apply
           summary-mode: redacted
           skip-plan-upload: true
-          comment-mode: ${{ inputs.decorate-pr && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && 'sticky' || 'off' }}
+          comment-mode: ${{ inputs.decorate-pr && 'sticky' || 'off' }}
           comment-identifier: ${{ inputs.comment-identifier }}
 
       - name: Verify deploy smoke succeeded
@@ -58,7 +58,7 @@ jobs:
           fi
 
       - name: Verify sticky PR comments
-        if: ${{ inputs.decorate-pr && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        if: ${{ inputs.decorate-pr && github.event.pull_request.head.repo.full_name == github.repository }}
         env:
           GH_TOKEN: ${{ github.token }}
           COMMENT_IDENTIFIER: ${{ inputs.comment-identifier }}

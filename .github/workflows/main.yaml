@@ -21,14 +21,17 @@ permissions:
 
 jobs:
   lint:
+    name: lint
     uses: ./.github/workflows/lint.yaml
 
   unit-test:
+    name: unit-test
     needs:
       - lint
     uses: ./.github/workflows/unit-tests.yaml
 
   pr-smoke:
+    name: pr-smoke
     needs:
       - unit-test
     uses: ./.github/workflows/pr-comment-smoke.yaml
@@ -37,11 +40,13 @@ jobs:
       comment-identifier: dogfood
 
   scans:
+    name: scans
     needs:
       - pr-smoke
     uses: ./.github/workflows/scans.yaml
 
   release:
+    name: release
     needs:
       - scans
     uses: ./.github/workflows/release.yaml
@@ -52,6 +57,7 @@ jobs:
     secrets: inherit
 
   publish:
+    name: publish
     needs:
       - release
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_publish }}

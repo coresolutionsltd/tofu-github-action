@@ -14,14 +14,17 @@ permissions:
 
 jobs:
   lint:
+    name: lint
     uses: ./.github/workflows/lint.yaml
 
   unit-test:
+    name: unit-test
     needs:
       - lint
     uses: ./.github/workflows/unit-tests.yaml
 
   pr-smoke:
+    name: pr-smoke
     needs:
       - unit-test
     permissions:

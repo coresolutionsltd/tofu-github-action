@@ -8,16 +8,16 @@ permissions:
 
 jobs:
   trivy:
-    name: Trivy (${{ matrix.case.name }})
+    name: trivy (${{ matrix.case.name }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         case:
-          - name: Valid
+          - name: valid
             workdir: test/valid
             expect_failure: false
-          - name: Findings
+          - name: findings
             workdir: test/scan
             expect_failure: true
     steps:
@@ -50,16 +50,16 @@ jobs:
           fi
 
   checkov:
-    name: Checkov (${{ matrix.case.name }})
+    name: checkov (${{ matrix.case.name }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         case:
-          - name: Valid
+          - name: valid
             workdir: test/valid
             expect_failure: false
-          - name: Findings
+          - name: findings
             workdir: test/scan
             expect_failure: true
     steps:

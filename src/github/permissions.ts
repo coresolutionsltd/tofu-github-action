@@ -28,7 +28,7 @@ export function canWritePullRequestComments(): boolean {
     return true;
   }
 
-  if (eventName !== 'pull_request' || !eventPath) {
+  if (!eventPath) {
     return false;
   }
 
