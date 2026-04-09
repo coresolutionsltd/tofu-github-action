@@ -7,10 +7,7 @@ on:
       - main
 
 permissions:
-  id-token: write
-  actions: write
   contents: read
-  pull-requests: write
 
 jobs:
   tflint:
@@ -28,7 +25,7 @@ jobs:
             expect_failure: true
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Run TFLint (${{ matrix.case.name }})
         id: tf-action-tflint
@@ -37,7 +34,7 @@ jobs:
         with:
           workdir: ${{ matrix.case.workdir }}
           steps: lint
-          comment-mode: ${{ matrix.case.expect_failure && 'off' || 'sticky' }}
+          comment-mode: off
           summary-mode: full
           skip-plan-upload: true
 

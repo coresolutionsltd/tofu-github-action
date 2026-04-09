@@ -7,10 +7,7 @@ on:
       - main
 
 permissions:
-  id-token: write
-  actions: write
   contents: read
-  pull-requests: write
 
 jobs:
   plan-artifact:
@@ -18,15 +15,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Create plan artifact for apply-only
+        id: tf-action-plan
         uses: ./
         with:
           workdir: test/valid
           env: apply-artifact
           steps: plan
           comment-mode: off
+          summary-mode: redacted
+          skip-plan-upload: false
 
   apply-only-with-plan:
     name: Apply Only Using Plan Artifact
@@ -34,7 +34,7 @@ jobs:
     needs: plan-artifact
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Apply using existing plan artifact
         id: tf-action-apply-only
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Apply without plan artifact
         id: tf-action-apply-no-plan
@@ -91,7 +91,7 @@ jobs:
           - off
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Plan and apply with summary mode
         uses: ./

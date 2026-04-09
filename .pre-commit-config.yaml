@@ -1,38 +1,98 @@
+minimum_pre_commit_version: "3.7.0"
+default_install_hook_types:
+  - pre-commit
+  - pre-push
+  - commit-msg
+
+exclude: ^dist/
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c
     hooks:
       - id: check-added-large-files
+      - id: check-case-conflict
       - id: check-json
+      - id: check-merge-conflict
       - id: check-symlinks
       - id: check-yaml
+      - id: detect-private-key
       - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args:
+          - --fix=lf
       - id: trailing-whitespace
-  - repo: https://github.com/gruntwork-io/pre-commit
-    rev: v0.1.30
-    hooks:
-      - id: shellcheck
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.1
-    hooks:
-      - id: codespell
-        name: codespell
-        description: Checks for common misspellings in text files.
-        entry: codespell -w
+
   - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v3.2.0
+    rev: 3db014c16a9d31997ab8c07a4d61fcce936c8f0d
     hooks:
       - id: conventional-pre-commit
         stages:
           - commit-msg
-  - repo: local
-    hooks:
-      - id: action-docs
-        name: Generate README with action-docs
-        language: system
-        entry: make gen-docs
+
   - repo: https://github.com/trussworks/pre-commit-hooks
-    rev: v2.0.0
+    rev: f72781be8d6b5e92653232bfb13f3f10cb1fc0c4
     hooks:
       - id: markdown-toc
         files: ^README\.md$
+
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: 3766ad839ad3a74558031510b3bc9872bb1d9980
+    hooks:
+      - id: markdownlint-cli2
+        files: ^README\.md$
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: 2ccb47ff45ad361a21071a7eedda4c37e6ae8c5a
+    hooks:
+      - id: codespell
+        args:
+          - --write-changes
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+        files: ^\.github/workflows/.*\.ya?ml$
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        files: ^scripts/.*\.sh$
+
+  - repo: local
+    hooks:
+      - id: validate-security-assets
+        name: validate security assets
+        entry: npm run validate:security-assets
+        language: system
+        pass_filenames: false
+        files: ^(action\.yml|README\.md|package\.json|package-lock\.json|scripts/(update-security-assets|validate-security-assets)\.mjs|security/|src/inputs\.ts|src/preflight\.ts|src/main\.ts)$
+
+      - id: npm-lint-types
+        name: npm run lint:types
+        entry: npm run lint:types
+        language: system
+        pass_filenames: false
+        stages:
+          - pre-push
+        files: ^(src/|test/|package\.json|package-lock\.json|tsconfig(?:\.test)?\.json|vitest\.config\.ts)$
+
+      - id: npm-test
+        name: npm test
+        entry: npm test
+        language: system
+        pass_filenames: false
+        stages:
+          - pre-push
+        files: ^(src/|test/|package\.json|package-lock\.json|vitest\.config\.ts)$
+
+      - id: verify-dist
+        name: verify committed dist bundles
+        entry: bash -c 'npm run build && npm run verify:dist'
+        language: system
+        pass_filenames: false
+        stages:
+          - pre-push
+        files: ^(src/|package\.json|package-lock\.json|tsconfig(?:\.test)?\.json|vitest\.config\.ts)$

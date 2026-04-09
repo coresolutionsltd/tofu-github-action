@@ -7,10 +7,7 @@ on:
       - main
 
 permissions:
-  id-token: write
-  actions: write
   contents: read
-  pull-requests: write
 
 jobs:
   valid-configs:
@@ -28,15 +25,10 @@ jobs:
             tfvar-files: "test.tfvars"
             env: "tfvar-file"
 
-          - name: "With inline tfvars (comma-separated)"
+          - name: "With single inline tfvar"
             workdir: "test/valid"
-            tfvars: "env=test,region=us-east-1"
-            env: "comma-separated-inline-tfvars"
-
-          - name: "With inline tfvars (space-separated)"
-            workdir: "test/valid"
-            tfvars: "env=staging region=us-west-2"
-            env: "space-separated-inline-tfvars"
+            tfvars: "env=test"
+            env: "single-inline-tfvar"
 
           - name: "With multiline tfvars"
             workdir: "test/valid"
@@ -45,14 +37,15 @@ jobs:
               region=eu-west-1
             env: "multiline-tfvars"
 
-          - name: "With inline backend config"
+          - name: "With multiline backend config"
             workdir: "test/valid"
-            backend-config-vars: "path=custom.tfstate"
-            env: "backend-config-vars"
+            backend-config-vars: |
+              path=custom.tfstate
+            env: "multiline-backend-config-vars"
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Run Tofu Action - ${{ matrix.test-case.name }}
         id: tf-action-valid-test

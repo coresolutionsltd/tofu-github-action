@@ -7,10 +7,7 @@ on:
       - main
 
 permissions:
-  id-token: write
-  actions: write
   contents: read
-  pull-requests: write
 
 jobs:
   invalid-configs:
@@ -30,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Run Tofu Action - ${{ matrix.test-case.name }}
         id: tf-action-invalid-test
@@ -56,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Validate empty directory
         id: tf-action-empty-validate

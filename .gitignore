@@ -1,1 +1,6 @@
 .terraform
+node_modules
+coverage
+.vitest
+*.tsbuildinfo
+build
