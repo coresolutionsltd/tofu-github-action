@@ -1,134 +1,88 @@
-name: Tofu PR Dogfood
+name: PR Comment Smoke
 
 on:
-  pull_request:
+  workflow_call:
+    inputs:
+      decorate-pr:
+        description: Whether to post sticky PR comments for the smoke run.
+        required: false
+        type: boolean
+        default: false
+      comment-identifier:
+        description: Sticky PR comment identifier for smoke runs.
+        required: false
+        type: string
+        default: dogfood
 
 permissions:
   contents: read
   pull-requests: write
 
 jobs:
-  pr-dogfood:
-    name: PR Dogfood (${{ matrix.case.name }})
+  deploy-smoke:
+    name: Deploy Smoke
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        case:
-          - name: Deploy
-            workdir: test/valid
-            env: dogfood-deploy
-            steps: validate,plan,apply
-            test-dir: ''
-            expected_outcome: success
-            expected_markers: checks,plan,apply
-          - name: Validate Failure
-            workdir: test/invalid
-            env: dogfood-invalid
-            steps: validate
-            test-dir: ''
-            expected_outcome: failure
-            expected_markers: checks
-          - name: Security Scan
-            workdir: test/scan
-            env: dogfood-scan
-            steps: trivy,checkov
-            test-dir: ''
-            expected_outcome: failure
-            expected_markers: checks
-          - name: Unit Tests
-            workdir: test/valid
-            env: dogfood-tests
-            steps: test
-            test-dir: tests/unit
-            expected_outcome: success
-            expected_markers: checks
-
     steps:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
-      - name: Run dogfood case
+      - name: Run deploy smoke
         id: first-run
-        continue-on-error: ${{ matrix.case.expected_outcome == 'failure' }}
         uses: ./
         with:
-          workdir: ${{ matrix.case.workdir }}
-          env: ${{ matrix.case.env }}
-          steps: ${{ matrix.case.steps }}
-          test-dir: ${{ matrix.case.test-dir }}
+          workdir: test/valid
+          env: dogfood-deploy
+          steps: validate,plan,apply
           summary-mode: redacted
           skip-plan-upload: true
-          comment-mode: sticky
-          comment-identifier: dogfood
+          comment-mode: ${{ inputs.decorate-pr && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && 'sticky' || 'off' }}
+          comment-identifier: ${{ inputs.comment-identifier }}
 
-      - name: Run dogfood case again to verify sticky updates
+      - name: Run deploy smoke again to verify sticky updates
         id: second-run
-        continue-on-error: ${{ matrix.case.expected_outcome == 'failure' }}
         uses: ./
         with:
-          workdir: ${{ matrix.case.workdir }}
-          env: ${{ matrix.case.env }}
-          steps: ${{ matrix.case.steps }}
-          test-dir: ${{ matrix.case.test-dir }}
+          workdir: test/valid
+          env: dogfood-deploy
+          steps: validate,plan,apply
           summary-mode: redacted
           skip-plan-upload: true
-          comment-mode: sticky
-          comment-identifier: dogfood
+          comment-mode: ${{ inputs.decorate-pr && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && 'sticky' || 'off' }}
+          comment-identifier: ${{ inputs.comment-identifier }}
 
-      - name: Verify expected action outcome
+      - name: Verify deploy smoke succeeded
         run: |
-          first="${{ steps.first-run.outcome }}"
-          second="${{ steps.second-run.outcome }}"
-          expected="${{ matrix.case.expected_outcome }}"
-
-          if [ "$expected" = "success" ]; then
-            if [ "$first" != "success" ] || [ "$second" != "success" ]; then
-              echo "❌ Expected successful dogfood runs for ${{ matrix.case.name }}"
-              exit 1
-            fi
-          else
-            if [ "$first" != "failure" ] || [ "$second" != "failure" ]; then
-              echo "❌ Expected failing dogfood runs for ${{ matrix.case.name }}"
-              exit 1
-            fi
+          if [ "${{ steps.first-run.outcome }}" != "success" ] || [ "${{ steps.second-run.outcome }}" != "success" ]; then
+            echo "❌ Deploy smoke failed"
+            exit 1
           fi
 
       - name: Verify sticky PR comments
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        if: ${{ inputs.decorate-pr && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
         env:
           GH_TOKEN: ${{ github.token }}
-          COMMENT_IDENTIFIER: dogfood
-          ENV_SLUG: ${{ matrix.case.env }}
+          COMMENT_IDENTIFIER: ${{ inputs.comment-identifier }}
           ISSUE_NUMBER: ${{ github.event.pull_request.number }}
-          EXPECTED_MARKERS: ${{ matrix.case.expected_markers }}
         run: |
           comments_json="$(gh api "repos/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100")"
           COMMENTS_JSON="$comments_json" node <<'EOF'
           const comments = JSON.parse(process.env.COMMENTS_JSON ?? '[]');
           const identifier = process.env.COMMENT_IDENTIFIER;
-          const envSlug = process.env.ENV_SLUG;
-          const markers = (process.env.EXPECTED_MARKERS ?? '')
-            .split(',')
-            .map((value) => value.trim())
-            .filter(Boolean);
-          const headings = {
-            checks: '### 🧪 Tofu Checks',
-            plan: '### 🏗️ Tofu Plan',
-            apply: '### 🚀 Tofu Apply',
-          };
+          const expected = new Map([
+            [`<!-- ${identifier}:checks:dogfood-deploy -->`, '### 🧪 Tofu Checks'],
+            [`<!-- ${identifier}:plan:dogfood-deploy -->`, '### 🏗️ Tofu Plan'],
+            [`<!-- ${identifier}:apply:dogfood-deploy -->`, '### 🚀 Tofu Apply'],
+          ]);
 
-          for (const kind of markers) {
-            const marker = `<!-- ${identifier}:${kind}:${envSlug} -->`;
+          for (const [marker, heading] of expected.entries()) {
             const matches = comments.filter((comment) => typeof comment.body === 'string' && comment.body.includes(marker));
             if (matches.length !== 1) {
               console.error(`Expected exactly one sticky comment for ${marker}, found ${matches.length}.`);
               process.exit(1);
             }
 
-            const expectedHeading = headings[kind];
-            if (!expectedHeading || !matches[0].body.includes(expectedHeading)) {
-              console.error(`Sticky comment for ${marker} is missing heading ${expectedHeading ?? kind}.`);
+            if (!matches[0].body.includes(heading)) {
+              console.error(`Sticky comment for ${marker} is missing heading ${heading}.`);
               process.exit(1);
             }
           }

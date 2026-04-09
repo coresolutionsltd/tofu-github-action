@@ -1,0 +1,92 @@
+name: Scans
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  trivy:
+    name: Trivy (${{ matrix.case.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        case:
+          - name: Valid
+            workdir: test/valid
+            expect_failure: false
+          - name: Findings
+            workdir: test/scan
+            expect_failure: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+
+      - name: Run Trivy
+        id: trivy
+        continue-on-error: ${{ matrix.case.expect_failure }}
+        uses: ./
+        with:
+          workdir: ${{ matrix.case.workdir }}
+          steps: trivy
+          comment-mode: off
+          summary-mode: full
+          skip-plan-upload: true
+
+      - name: Verify Trivy result
+        run: |
+          if [ "${{ matrix.case.expect_failure }}" == "true" ]; then
+            if [ "${{ steps.trivy.outcome }}" == "success" ]; then
+              echo "❌ Expected Trivy failure for ${{ matrix.case.name }}"
+              exit 1
+            fi
+          else
+            if [ "${{ steps.trivy.outcome }}" != "success" ]; then
+              echo "❌ Expected Trivy success for ${{ matrix.case.name }}"
+              exit 1
+            fi
+          fi
+
+  checkov:
+    name: Checkov (${{ matrix.case.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        case:
+          - name: Valid
+            workdir: test/valid
+            expect_failure: false
+          - name: Findings
+            workdir: test/scan
+            expect_failure: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+
+      - name: Run Checkov
+        id: checkov
+        continue-on-error: ${{ matrix.case.expect_failure }}
+        uses: ./
+        with:
+          workdir: ${{ matrix.case.workdir }}
+          steps: checkov
+          comment-mode: off
+          summary-mode: full
+          skip-plan-upload: true
+
+      - name: Verify Checkov result
+        run: |
+          if [ "${{ matrix.case.expect_failure }}" == "true" ]; then
+            if [ "${{ steps.checkov.outcome }}" == "success" ]; then
+              echo "❌ Expected Checkov failure for ${{ matrix.case.name }}"
+              exit 1
+            fi
+          else
+            if [ "${{ steps.checkov.outcome }}" != "success" ]; then
+              echo "❌ Expected Checkov success for ${{ matrix.case.name }}"
+              exit 1
+            fi
+          fi

@@ -1,40 +1,13 @@
-name: CI
+name: Lint
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'tsconfig.json'
-      - 'vitest.config.ts'
-      - 'action.yml'
-      - 'README.md'
-      - 'scripts/**'
-      - 'security/**'
-      - 'src/**'
-      - 'test/**'
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'tsconfig.json'
-      - 'vitest.config.ts'
-      - 'action.yml'
-      - 'README.md'
-      - 'scripts/**'
-      - 'security/**'
-      - 'src/**'
-      - 'test/**'
+  workflow_call:
 
 permissions:
   contents: read
 
 jobs:
-  repo-integrity:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -54,9 +27,6 @@ jobs:
 
       - name: Validate Security Assets
         run: npm run validate:security-assets
-
-      - name: Run tests
-        run: npm test
 
       - name: Build dist bundles
         run: npm run build

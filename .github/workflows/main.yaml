@@ -1,0 +1,61 @@
+name: Main
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      run_publish:
+        description: Run the publish job after release.
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    uses: ./.github/workflows/lint.yaml
+
+  unit-test:
+    needs:
+      - lint
+    uses: ./.github/workflows/unit-tests.yaml
+
+  pr-smoke:
+    needs:
+      - unit-test
+    uses: ./.github/workflows/pr-comment-smoke.yaml
+    with:
+      decorate-pr: false
+      comment-identifier: dogfood
+
+  scans:
+    needs:
+      - pr-smoke
+    uses: ./.github/workflows/scans.yaml
+
+  release:
+    needs:
+      - scans
+    uses: ./.github/workflows/release.yaml
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    secrets: inherit
+
+  publish:
+    needs:
+      - release
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_publish }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish placeholder
+        run: echo "Publish workflow is not implemented yet."
