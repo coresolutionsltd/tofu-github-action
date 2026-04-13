@@ -1,0 +1,29 @@
+{
+  "name": "tofu-github-action",
+  "version": "2.0.0-development",
+  "private": true,
+  "description": "OpenTofu GitHub Action",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run clean && tsc --project tsconfig.json && ncc build build/main.js -o dist/main && ncc build build/preflight.js -o dist/preflight",
+    "clean": "rm -rf build dist .vitest coverage",
+    "lint:types": "tsc --project tsconfig.json --noEmit && tsc --project tsconfig.test.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "update:security-assets": "node scripts/update-security-assets.mjs",
+    "validate:security-assets": "node scripts/validate-security-assets.mjs",
+    "verify:dist": "bash scripts/verify-dist-clean.sh"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "@vercel/ncc": "^0.38.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.1"
+  }
+}

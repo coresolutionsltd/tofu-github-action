@@ -1,22 +1,18 @@
-name: Release
+name: Lint
 
 on:
   workflow_call:
 
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
 
 jobs:
-  release:
-    name: semantic-release
+  lint:
+    name: node
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-        with:
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
@@ -33,16 +29,8 @@ jobs:
       - name: Validate Security Assets
         run: npm run validate:security-assets
 
-      - name: Run tests
-        run: npm test
-
       - name: Build dist bundles
         run: npm run build
 
       - name: Verify committed dist bundles
         run: npm run verify:dist
-
-      - name: Semantic Release
-        uses: cycjimmy/semantic-release-action@16ca923e6ccbb50770c415a0ccd43709a8c5f7a4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

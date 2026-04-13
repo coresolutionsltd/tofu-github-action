@@ -1,27 +1,120 @@
-name: Tofu PR Comment Test
+name: Comment Smoke
 
 on:
-  pull_request:
+  workflow_call:
+    inputs:
+      decorate-pr:
+        description: Whether to post sticky PR comments for the smoke run.
+        required: false
+        type: boolean
+        default: false
+      comment-identifier:
+        description: Sticky PR comment identifier for smoke runs.
+        required: false
+        type: string
+        default: dogfood
 
 permissions:
-  id-token: write
-  actions: write
   contents: read
   pull-requests: write
 
 jobs:
-  pr-comment-test:
-    name: PR Comment Test (Validate/Plan/Apply)
+  comment-smoke:
+    name: comment
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
-      - name: Run action with PR comments
+      - name: Prepare smoke fixtures
+        id: fixtures
+        shell: bash
+        run: |
+          fixture_root=".tmp/pr-comment-smoke"
+          comment_one="${fixture_root}/comment-one"
+          comment_two="${fixture_root}/comment-two"
+          summary_dir="${fixture_root}/summary"
+          rm -rf "$fixture_root"
+          mkdir -p "$fixture_root"
+          cp -R test/valid "$comment_one"
+          cp -R test/valid "$comment_two"
+          cp -R test/valid "$summary_dir"
+          {
+            echo "comment_one=$comment_one"
+            echo "comment_two=$comment_two"
+            echo "summary_dir=$summary_dir"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run deploy smoke
+        id: first-run
         uses: ./
         with:
-          workdir: test/valid
-          env: pr-comment-test
+          workdir: ${{ steps.fixtures.outputs.comment_one }}
+          env: dogfood-deploy
+          steps: validate,plan,apply
+          summary-mode: off
+          skip-plan-upload: true
+          comment-mode: ${{ inputs.decorate-pr && 'sticky' || 'off' }}
+          comment-identifier: ${{ inputs.comment-identifier }}
+
+      - name: Run deploy smoke again to verify sticky updates
+        id: second-run
+        uses: ./
+        with:
+          workdir: ${{ steps.fixtures.outputs.comment_two }}
+          env: dogfood-deploy
+          steps: validate,plan,apply
+          summary-mode: off
+          skip-plan-upload: true
+          comment-mode: ${{ inputs.decorate-pr && 'sticky' || 'off' }}
+          comment-identifier: ${{ inputs.comment-identifier }}
+
+      - name: Run summary smoke
+        id: summary-run
+        uses: ./
+        with:
+          workdir: ${{ steps.fixtures.outputs.summary_dir }}
+          env: dogfood-summary
           steps: validate,plan,apply
           summary-mode: redacted
           skip-plan-upload: true
+          comment-mode: off
+          comment-identifier: ${{ inputs.comment-identifier }}
+
+      - name: Verify smoke runs succeeded
+        run: |
+          if [ "${{ steps.first-run.outcome }}" != "success" ] || [ "${{ steps.second-run.outcome }}" != "success" ] || [ "${{ steps.summary-run.outcome }}" != "success" ]; then
+            echo "❌ Smoke workflow failed"
+            exit 1
+          fi
+
+      - name: Verify sticky PR comments
+        if: ${{ inputs.decorate-pr && github.event.pull_request.head.repo.full_name == github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMENT_IDENTIFIER: ${{ inputs.comment-identifier }}
+          ISSUE_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          comments_json="$(gh api "repos/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100")"
+          COMMENTS_JSON="$comments_json" node <<'EOF'
+          const comments = JSON.parse(process.env.COMMENTS_JSON ?? '[]');
+          const identifier = process.env.COMMENT_IDENTIFIER;
+          const expected = new Map([
+            [`<!-- ${identifier}:checks:dogfood-deploy -->`, '### 🧪 Tofu Checks'],
+            [`<!-- ${identifier}:plan:dogfood-deploy -->`, '### 🏗️ Tofu Plan'],
+            [`<!-- ${identifier}:apply:dogfood-deploy -->`, '### 🚀 Tofu Apply'],
+          ]);
+
+          for (const [marker, heading] of expected.entries()) {
+            const matches = comments.filter((comment) => typeof comment.body === 'string' && comment.body.includes(marker));
+            if (matches.length !== 1) {
+              console.error(`Expected exactly one sticky comment for ${marker}, found ${matches.length}.`);
+              process.exit(1);
+            }
+
+            if (!matches[0].body.includes(heading)) {
+              console.error(`Sticky comment for ${marker} is missing heading ${heading}.`);
+              process.exit(1);
+            }
+          }
+          EOF

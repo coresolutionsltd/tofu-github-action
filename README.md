@@ -4,6 +4,7 @@
 
 * [Description](#description)
 * [Inputs](#inputs)
+* [Outputs](#outputs)
 * [Usage](#usage)
 * [Permissions](#permissions)
 * [Usage Examples](#usage-examples)
@@ -22,6 +23,7 @@
     * [Separate Plan and Apply Jobs](#separate-plan-and-apply-jobs)
   * [Comment and Summary Controls](#comment-and-summary-controls)
   * [Linting](#linting)
+    * [Trivy](#trivy)
     * [Checkov](#checkov)
 * [Contributing](#contributing)
   * [Guidelines](#guidelines)
@@ -37,42 +39,60 @@
 This action will validate, plan and apply your OpenTofu configuration.
 <!-- action-docs-description source="action.yml" -->
 
-Workflow summaries are automatically updated from the different stages, this makes it easier to see validation issues, planned changed and apply results. Pull requests are decorated with a concise overview — giving you instant visibility at a glance.
+Workflow summaries are automatically updated from each stage, making it easier to see validation issues, planned changes, and apply results. Pull requests are decorated with concise sticky comments so reruns update in place instead of spamming the thread.
 
 <!-- action-docs-inputs source="action.yml" -->
 ## Inputs
 
 | name | description | required | default |
 | --- | --- | --- | --- |
-| `version` | <p>The OpenTofu version to install (e.g., 1.11.x).</p> | `false` | `1.11.x` |
-| `workdir` | <p>Path to the Tofu configuration directory (relative to repository root).</p> | `false` | `.` |
-| `env` | <p>Deployment environment (eg <code>dev</code>, <code>staging</code> or <code>prod</code>). Accepts any string.</p> | `false` | `""` |
-| `steps` | <p>Steps to run: <code>validate</code>, <code>plan</code>, <code>apply</code>, <code>test</code>, <code>lint</code>, <code>trivy</code>, <code>checkov</code> (comma, space or newline separated). Use `all`` to run all steps.</p> | `false` | `all` |
-| `tfvar-files` | <p>Comma, space or newline separated list of tfvar files to include</p> | `false` | `""` |
-| `tfvars` | <p>Comma, space or newline separated key-value pairs for terraform variables (format: key1=value1)</p> | `false` | `""` |
-| `backend-config-var-files` | <p>Comma, space or newline  separated list of backend config files to include</p> | `false` | `""` |
-| `backend-config-vars` | <p>Comma, space or newline separated key-value pairs for backend configuration (format: key1=value1)</p> | `false` | `""` |
-| `test-dir` | <p>Directory containing OpenTofu tests (relative to workdir)</p> | `false` | `tests` |
-| `test-tfvar-files` | <p>Comma, space or newline separated list of tfvar files to include for tests (defaults to tfvar-files)</p> | `false` | `""` |
-| `test-tfvars` | <p>Comma, space or newline separated key-value pairs for test variables (defaults to tfvars)</p> | `false` | `""` |
-| `tflint-version` | <p>TFLint version to install</p> | `false` | `latest` |
-| `trivy-version` | <p>Trivy version to install</p> | `false` | `latest` |
-| `trivy-scan-type` | <p>Trivy scan type (e.g., config, fs)</p> | `false` | `config` |
-| `checkov-skip-checks` | <p>Comma, space or newline separated list of Checkov checks to skip</p> | `false` | `""` |
-| `lock-timeout` | <p>State lock timeout for plan/apply (e.g., 5m)</p> | `false` | `""` |
-| `parallelism` | <p>Parallelism for plan/apply</p> | `false` | `""` |
-| `refresh` | <p>Refresh behavior for plan/apply (<code>true</code> or <code>false</code>)</p> | `false` | `""` |
-| `targets` | <p>Comma, space or newline separated list of target resources for plan/apply</p> | `false` | `""` |
-| `artifact-retention-days` | <p>Retention days for plan artifacts (1-90). Leave empty to use repository default</p> | `false` | `""` |
-| `skip-plan-upload` | <p>Skip uploading the plan artifact</p> | `false` | `false` |
-| `summary-mode` | <p>Summary mode for validate/lint/trivy/checkov/test/plan/apply: <code>full</code>, <code>redacted</code>, or <code>off</code></p> | `false` | `full` |
-| `comment-mode` | <p>PR comment mode: <code>sticky</code> to update a single comment or <code>off</code> to disable comments</p> | `false` | `sticky` |
-| `comment-identifier` | <p>Identifier used to find/update sticky PR comments</p> | `false` | `tf-github-action` |
+| `version` | <p>Exact OpenTofu version to install.</p> | `false` | `1.11.2` |
+| `tofu-checksums` | <p>Optional newline-delimited SHA256 checksums for a custom OpenTofu version. Required when overriding <code>version</code>.</p> | `false` | `""` |
+| `workdir` | <p>Path to the OpenTofu configuration directory, relative to the repository root.</p> | `false` | `.` |
+| `env` | <p>Logical deployment label used for sticky comment scoping, artifact naming, and plan/apply correlation.</p> | `false` | `""` |
+| `steps` | <p>Comma or newline separated steps to run. Allowed values are <code>validate</code>, <code>plan</code>, <code>apply</code>, <code>test</code>, <code>lint</code>, <code>trivy</code>, and <code>checkov</code>.</p> | `false` | `validate,plan` |
+| `tfvar-files` | <p>Comma or newline separated list of tfvar files to include.</p> | `false` | `""` |
+| `tfvars` | <p>Newline-delimited <code>key=value</code> pairs for Terraform variables.</p> | `false` | `""` |
+| `backend-config-var-files` | <p>Comma or newline separated list of backend config files to include.</p> | `false` | `""` |
+| `backend-config-vars` | <p>Newline-delimited <code>key=value</code> pairs for backend configuration.</p> | `false` | `""` |
+| `test-dir` | <p>Directory containing OpenTofu tests, relative to <code>workdir</code>.</p> | `false` | `tests` |
+| `test-tfvar-files` | <p>Comma or newline separated list of tfvar files to include for tests. Defaults to <code>tfvar-files</code>.</p> | `false` | `""` |
+| `test-tfvars` | <p>Newline-delimited <code>key=value</code> pairs for test variables. Defaults to <code>tfvars</code>.</p> | `false` | `""` |
+| `tflint-version` | <p>Exact TFLint version to install.</p> | `false` | `0.55.1` |
+| `tflint-checksums` | <p>Optional newline-delimited SHA256 checksums for a custom TFLint version. Required when overriding <code>tflint-version</code>.</p> | `false` | `""` |
+| `trivy-version` | <p>Exact Trivy version to install. Defaults to the post-incident safe <code>0.69.3</code> release.</p> | `false` | `0.69.3` |
+| `trivy-checksums` | <p>Optional newline-delimited SHA256 checksums for a custom Trivy version. Required when overriding <code>trivy-version</code>.</p> | `false` | `""` |
+| `checkov-version` | <p>Exact Checkov version to install. The bundled lock file currently supports <code>3.2.497</code>.</p> | `false` | `3.2.497` |
+| `trivy-scan-type` | <p>Trivy scan type. Allowed values are <code>config</code> and <code>fs</code>.</p> | `false` | `config` |
+| `checkov-skip-checks` | <p>Comma or newline separated list of Checkov checks to skip.</p> | `false` | `""` |
+| `lock-timeout` | <p>State lock timeout for plan/apply, for example <code>5m</code>.</p> | `false` | `""` |
+| `parallelism` | <p>Parallelism for plan/apply.</p> | `false` | `""` |
+| `refresh` | <p>Refresh behavior for plan/apply. Allowed values are <code>true</code> and <code>false</code>.</p> | `false` | `""` |
+| `targets` | <p>Comma or newline separated list of target resources for plan/apply.</p> | `false` | `""` |
+| `artifact-retention-days` | <p>Retention days for uploaded plan artifacts, from 1 to 90. Empty uses the repository default.</p> | `false` | `""` |
+| `skip-plan-upload` | <p>Skip uploading the generated plan artifact.</p> | `false` | `true` |
+| `summary-mode` | <p>Summary mode for validate, lint, trivy, checkov, test, plan, and apply. Allowed values are <code>full</code>, <code>redacted</code>, and <code>off</code>.</p> | `false` | `redacted` |
+| `comment-mode` | <p>PR comment mode. Use <code>sticky</code> to update a single comment or <code>off</code> to disable comments.</p> | `false` | `sticky` |
+| `comment-identifier` | <p>Identifier used to find and update sticky PR comments.</p> | `false` | `tf-github-action` |
 <!-- action-docs-inputs source="action.yml" -->
 
 <!-- action-docs-outputs source="action.yml" -->
 
 <!-- action-docs-outputs source="action.yml" -->
+
+## Outputs
+
+The action exposes per-step status outputs such as `validate_status`, `plan_status`, `apply_status`, `lint_status`, `trivy_status`, `checkov_status`, and `test_status`.
+
+The most useful orchestration outputs are:
+
+- `has_failures`: `true` when any selected step failed.
+- `has_changes`: `true` when the plan detected changes.
+- `create_count`, `update_count`, `destroy_count`: plan change counts.
+- `added`, `changed`, `destroyed`, `imported`, `forgotten`: apply change counts.
+- `plan_artifact_name`: uploaded plan artifact name.
+- `plan_artifact_sha256`: SHA256 digest for the generated plan artifact.
+- `env_slug`: sanitized environment label used for sticky comment scoping and artifact naming.
 
 <!-- action-docs-usage action="action.yml" project="coresolutionsltd/tofu-github-action" version="main" -->
 ## Usage
@@ -81,145 +101,169 @@ Workflow summaries are automatically updated from the different stages, this mak
 - uses: coresolutionsltd/tofu-github-action@main
   with:
     version:
-    # The OpenTofu version to install (e.g., 1.11.x).
+    # Exact OpenTofu version to install.
     #
     # Required: false
-    # Default: 1.11.x
+    # Default: 1.11.2
+
+    tofu-checksums:
+    # Optional newline-delimited SHA256 checksums for a custom OpenTofu version. Required when overriding `version`.
+    #
+    # Required: false
+    # Default: ""
 
     workdir:
-    # Path to the Tofu configuration directory (relative to repository root).
+    # Path to the OpenTofu configuration directory, relative to the repository root.
     #
     # Required: false
     # Default: .
 
     env:
-    # Deployment environment (eg `dev`, `staging` or `prod`). Accepts any string.
+    # Logical deployment label used for sticky comment scoping, artifact naming, and plan/apply correlation.
     #
     # Required: false
     # Default: ""
 
     steps:
-    # Steps to run: `validate`, `plan`, `apply`, `test`, `lint`, `trivy`, `checkov` (comma, space or newline separated). Use `all`` to run all steps.
+    # Comma or newline separated steps to run. Allowed values are `validate`, `plan`, `apply`, `test`, `lint`, `trivy`, and `checkov`.
     #
     # Required: false
-    # Default: all
+    # Default: validate,plan
 
     tfvar-files:
-    # Comma, space or newline separated list of tfvar files to include
+    # Comma or newline separated list of tfvar files to include.
     #
     # Required: false
     # Default: ""
 
     tfvars:
-    # Comma, space or newline separated key-value pairs for terraform variables (format: key1=value1)
+    # Newline-delimited `key=value` pairs for Terraform variables.
     #
     # Required: false
     # Default: ""
 
     backend-config-var-files:
-    # Comma, space or newline  separated list of backend config files to include
+    # Comma or newline separated list of backend config files to include.
     #
     # Required: false
     # Default: ""
 
     backend-config-vars:
-    # Comma, space or newline separated key-value pairs for backend configuration (format: key1=value1)
+    # Newline-delimited `key=value` pairs for backend configuration.
     #
     # Required: false
     # Default: ""
 
     test-dir:
-    # Directory containing OpenTofu tests (relative to workdir)
+    # Directory containing OpenTofu tests, relative to `workdir`.
     #
     # Required: false
     # Default: tests
 
     test-tfvar-files:
-    # Comma, space or newline separated list of tfvar files to include for tests (defaults to tfvar-files)
+    # Comma or newline separated list of tfvar files to include for tests. Defaults to `tfvar-files`.
     #
     # Required: false
     # Default: ""
 
     test-tfvars:
-    # Comma, space or newline separated key-value pairs for test variables (defaults to tfvars)
+    # Newline-delimited `key=value` pairs for test variables. Defaults to `tfvars`.
     #
     # Required: false
     # Default: ""
 
     tflint-version:
-    # TFLint version to install
+    # Exact TFLint version to install
     #
     # Required: false
-    # Default: latest
+    # Default: 0.55.1
+
+    tflint-checksums:
+    # Optional newline-delimited SHA256 checksums for a custom TFLint version. Required when overriding `tflint-version`.
+    #
+    # Required: false
+    # Default: ""
 
     trivy-version:
-    # Trivy version to install
+    # Exact Trivy version to install. Defaults to the post-incident safe `0.69.3` release.
     #
     # Required: false
-    # Default: latest
+    # Default: 0.69.3
+
+    trivy-checksums:
+    # Optional newline-delimited SHA256 checksums for a custom Trivy version. Required when overriding `trivy-version`.
+    #
+    # Required: false
+    # Default: ""
+
+    checkov-version:
+    # Exact Checkov version to install. The bundled lock file currently supports `3.2.497`.
+    #
+    # Required: false
+    # Default: 3.2.497
 
     trivy-scan-type:
-    # Trivy scan type (e.g., config, fs)
+    # Trivy scan type. Allowed values are `config` and `fs`.
     #
     # Required: false
     # Default: config
 
     checkov-skip-checks:
-    # Comma, space or newline separated list of Checkov checks to skip
+    # Comma or newline separated list of Checkov checks to skip.
     #
     # Required: false
     # Default: ""
 
     lock-timeout:
-    # State lock timeout for plan/apply (e.g., 5m)
+    # State lock timeout for plan/apply, for example `5m`.
     #
     # Required: false
     # Default: ""
 
     parallelism:
-    # Parallelism for plan/apply
+    # Parallelism for plan/apply.
     #
     # Required: false
     # Default: ""
 
     refresh:
-    # Refresh behavior for plan/apply (`true` or `false`)
+    # Refresh behavior for plan/apply. Allowed values are `true` and `false`.
     #
     # Required: false
     # Default: ""
 
     targets:
-    # Comma, space or newline separated list of target resources for plan/apply
+    # Comma or newline separated list of target resources for plan/apply.
     #
     # Required: false
     # Default: ""
 
     artifact-retention-days:
-    # Retention days for plan artifacts (1-90). Leave empty to use repository default
+    # Retention days for uploaded plan artifacts, from 1 to 90. Empty uses the repository default.
     #
     # Required: false
     # Default: ""
 
     skip-plan-upload:
-    # Skip uploading the plan artifact
+    # Skip uploading the generated plan artifact.
     #
     # Required: false
-    # Default: false
+    # Default: true
 
     summary-mode:
-    # Summary mode for validate/lint/trivy/checkov/test/plan/apply: `full`, `redacted`, or `off`
+    # Summary mode for validate, lint, trivy, checkov, test, plan, and apply. Allowed values are `full`, `redacted`, and `off`.
     #
     # Required: false
-    # Default: full
+    # Default: redacted
 
     comment-mode:
-    # PR comment mode: `sticky` to update a single comment or `off` to disable comments
+    # PR comment mode. Use `sticky` to update a single comment or `off` to disable comments.
     #
     # Required: false
     # Default: sticky
 
     comment-identifier:
-    # Identifier used to find/update sticky PR comments
+    # Identifier used to find and update sticky PR comments.
     #
     # Required: false
     # Default: tf-github-action
@@ -247,7 +291,7 @@ permissions:
   pull-requests: write
 ```
 
-For supply-chain hardening, consider pinning third-party actions to commit SHAs.
+This action now pins third-party actions to commit SHAs, verifies OpenTofu, TFLint, and Trivy downloads against pinned SHA256 checksums, and installs Checkov from a hash-locked requirements file.
 
 ## Usage Examples
 
@@ -270,7 +314,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Validate Configuration
         uses: coresolutionsltd/tofu-github-action@main
@@ -294,7 +338,7 @@ jobs:
   plan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Plan Changes
         uses: coresolutionsltd/tofu-github-action@main
@@ -319,14 +363,14 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Deploy to Development Environment
         uses: coresolutionsltd/tofu-github-action@main
         with:
           workdir: ./infra
           env: dev
-          steps: all  # Runs validate, plan, and apply
+          steps: validate,plan,apply
 ```
 
 ### Variable Configuration Examples
@@ -341,9 +385,9 @@ Load multiple variable files to configure your infrastructure with shared and en
     workdir: ./infra
     env: dev
     tfvar-files: common.tfvars, prod.tfvars
-    steps: all
+    steps: validate,plan,apply
 ```
-> `tfvar-files` can be comma, space or newline separated.
+> `tfvar-files` can be comma or newline separated.
 
 #### Inline Variables (Newline-separated)
 Pass variables directly in the workflow for simple configurations or dynamic values.
@@ -358,7 +402,7 @@ Pass variables directly in the workflow for simple configurations or dynamic val
       environment=development
       region=us-west-2
       instance_count=2
-    steps: all
+    steps: validate,plan,apply
 ```
 
 #### Mixed Variable Sources
@@ -376,7 +420,7 @@ Combine variable files and inline variables for maximum flexibility.
       commit_sha=${{ github.sha }}
       deployed_by=${{ github.actor }}
       deployment_time=${{ github.event.head_commit.timestamp }}
-    steps: all
+    steps: validate,plan,apply
 ```
 
 ### Backend Configuration Examples
@@ -407,7 +451,7 @@ Configure remote state directly in the workflow for dynamic setups.
       key=${{ github.repository }}/terraform.tfstate
       region=us-west-2
       encrypt=true
-    steps: all
+    steps: validate,plan,apply
 ```
 
 ### Approval Gates
@@ -431,7 +475,7 @@ jobs:
     name: Plan Infrastructure Changes
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Plan Production Changes
         uses: coresolutionsltd/tofu-github-action@main
@@ -440,7 +484,7 @@ jobs:
           env: prod
           tfvar-files: base.tfvars, prod.tfvars
           tfvars: build_number=${{ github.run_number }}
-          steps: validate plan
+          steps: validate,plan
 
   apply:
     name: Apply Infrastructure Changes
@@ -448,7 +492,7 @@ jobs:
     needs: plan
     environment: prod  # This environment can have protection rules
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Apply Production Changes
         uses: coresolutionsltd/tofu-github-action@main
@@ -497,6 +541,31 @@ Linting runs `tflint` against `workdir`. Configuration resolution is:
 
 Trivy and Checkov scans use config files with sensible defaults bundled in this action. You can override them by placing a config file in your repo.
 
+The security tooling is installed in a hardened way by default:
+- OpenTofu is downloaded only when its release archive matches a pinned SHA256 checksum.
+- TFLint is downloaded only when its release archive matches a pinned SHA256 checksum.
+- Trivy defaults to the safe `0.69.3` release and is downloaded only when its archive matches a pinned SHA256 checksum.
+- Checkov is installed from a hash-locked Python requirements file instead of an unpinned `pip install`.
+
+### Maintainer Updates
+
+To bump the pinned toolchain safely, run:
+
+```bash
+npm run update:security-assets -- \
+  --tofu-version 1.11.2 \
+  --tflint-version 0.55.1 \
+  --trivy-version 0.69.3 \
+  --checkov-version 3.2.497
+```
+
+That script refreshes:
+- vendored checksum manifests for OpenTofu, TFLint, and Trivy
+- the hash-locked Checkov requirements file
+- version defaults referenced in the action, source, tests, and README
+
+CI runs `npm run validate:security-assets` to catch drift between defaults and the vendored security assets.
+
 Config resolution (highest precedence first):
 
 1. `workdir` (the directory you pass to the action where your Tofu config lives)
@@ -507,7 +576,7 @@ Use `.trivy.yaml` and `.checkov.yaml` in your repo to override the defaults.
 
 #### Trivy
 
-Trivy scans IaC configuration using `.trivy.yaml` and `steps: trivy`. Use `trivy-version` to pin the version, and `trivy-scan-type` if you need `fs` instead of `config`.
+Trivy scans IaC configuration using `.trivy.yaml` and `steps: trivy`. The default installer uses the post-incident safe `0.69.3` release. If you override `trivy-version`, you should also provide matching `trivy-checksums`. Use `trivy-scan-type` if you need `fs` instead of `config`.
 
 ```yaml
 - name: Trivy scan
@@ -519,7 +588,7 @@ Trivy scans IaC configuration using `.trivy.yaml` and `steps: trivy`. Use `trivy
 
 #### Checkov
 
-Checkov scans IaC configuration using `.checkov.yaml` and `steps: checkov`. Use `checkov-skip-checks` for quick exclusions, with additional settings in `.checkov.yaml`.
+Checkov scans IaC configuration using `.checkov.yaml` and `steps: checkov`. Use `checkov-skip-checks` for quick exclusions, with additional settings in `.checkov.yaml`. The bundled install path is hash-locked to `checkov==3.2.497`.
 
 ```yaml
 - name: Checkov scan

@@ -1,2026 +1,324 @@
 name: Tofu GitHub Action
-description: This action will validate, plan and apply your OpenTofu configuration.
+description: Validate, plan, apply, test, lint, and scan OpenTofu configuration with sticky PR comments and workflow summaries.
 
 branding:
-  icon: 'arrow-up'
-  color: 'yellow'
+  icon: arrow-up
+  color: yellow
 
 inputs:
   version:
-    description: 'The OpenTofu version to install (e.g., 1.11.x).'
+    description: Exact OpenTofu version to install.
     required: false
-    default: '1.11.x'
+    default: 1.11.2
+  tofu-checksums:
+    description: Optional newline-delimited SHA256 checksums for a custom OpenTofu version. Required when overriding `version`.
+    required: false
+    default: ''
   workdir:
-    description: 'Path to the Tofu configuration directory (relative to repository root).'
+    description: Path to the OpenTofu configuration directory, relative to the repository root.
     required: false
-    default: '.'
+    default: .
   env:
-    description: 'Deployment environment (eg `dev`, `staging` or `prod`). Accepts any string.'
+    description: Logical deployment label used for sticky comment scoping, artifact naming, and plan/apply correlation.
     required: false
     default: ''
   steps:
-    description: 'Steps to run: `validate`, `plan`, `apply`, `test`, `lint`, `trivy`, `checkov` (comma, space or newline separated). Use `all`` to run all steps.'
+    description: Comma or newline separated steps to run. Allowed values are `validate`, `plan`, `apply`, `test`, `lint`, `trivy`, and `checkov`.
     required: false
-    default: 'all'
+    default: validate,plan
   tfvar-files:
-    description: 'Comma, space or newline separated list of tfvar files to include'
+    description: Comma or newline separated list of tfvar files to include.
     required: false
     default: ''
   tfvars:
-    description: 'Comma, space or newline separated key-value pairs for terraform variables (format: key1=value1)'
+    description: Newline-delimited `key=value` pairs for Terraform variables.
     required: false
     default: ''
   backend-config-var-files:
-    description: 'Comma, space or newline  separated list of backend config files to include'
+    description: Comma or newline separated list of backend config files to include.
     required: false
     default: ''
   backend-config-vars:
-    description: 'Comma, space or newline separated key-value pairs for backend configuration (format: key1=value1)'
+    description: Newline-delimited `key=value` pairs for backend configuration.
     required: false
     default: ''
   test-dir:
-    description: 'Directory containing OpenTofu tests (relative to workdir)'
+    description: Directory containing OpenTofu tests, relative to `workdir`.
     required: false
-    default: 'tests'
+    default: tests
   test-tfvar-files:
-    description: 'Comma, space or newline separated list of tfvar files to include for tests (defaults to tfvar-files)'
+    description: Comma or newline separated list of tfvar files to include for tests. Defaults to `tfvar-files`.
     required: false
     default: ''
   test-tfvars:
-    description: 'Comma, space or newline separated key-value pairs for test variables (defaults to tfvars)'
+    description: Newline-delimited `key=value` pairs for test variables. Defaults to `tfvars`.
     required: false
     default: ''
   tflint-version:
-    description: 'TFLint version to install'
+    description: Exact TFLint version to install.
     required: false
-    default: 'latest'
+    default: 0.55.1
+  tflint-checksums:
+    description: Optional newline-delimited SHA256 checksums for a custom TFLint version. Required when overriding `tflint-version`.
+    required: false
+    default: ''
   trivy-version:
-    description: 'Trivy version to install'
+    description: Exact Trivy version to install. Defaults to the post-incident safe `0.69.3` release.
     required: false
-    default: 'latest'
+    default: 0.69.3
+  trivy-checksums:
+    description: Optional newline-delimited SHA256 checksums for a custom Trivy version. Required when overriding `trivy-version`.
+    required: false
+    default: ''
+  checkov-version:
+    description: Exact Checkov version to install. The bundled lock file currently supports `3.2.497`.
+    required: false
+    default: 3.2.497
   trivy-scan-type:
-    description: 'Trivy scan type (e.g., config, fs)'
+    description: Trivy scan type. Allowed values are `config` and `fs`.
     required: false
-    default: 'config'
+    default: config
   checkov-skip-checks:
-    description: 'Comma, space or newline separated list of Checkov checks to skip'
+    description: Comma or newline separated list of Checkov checks to skip.
     required: false
     default: ''
   lock-timeout:
-    description: 'State lock timeout for plan/apply (e.g., 5m)'
+    description: State lock timeout for plan/apply, for example `5m`.
     required: false
     default: ''
   parallelism:
-    description: 'Parallelism for plan/apply'
+    description: Parallelism for plan/apply.
     required: false
     default: ''
   refresh:
-    description: 'Refresh behavior for plan/apply (`true` or `false`)'
+    description: Refresh behavior for plan/apply. Allowed values are `true` and `false`.
     required: false
     default: ''
   targets:
-    description: 'Comma, space or newline separated list of target resources for plan/apply'
+    description: Comma or newline separated list of target resources for plan/apply.
     required: false
     default: ''
   artifact-retention-days:
-    description: 'Retention days for plan artifacts (1-90). Leave empty to use repository default'
+    description: Retention days for uploaded plan artifacts, from 1 to 90. Empty uses the repository default.
     required: false
     default: ''
   skip-plan-upload:
-    description: 'Skip uploading the plan artifact'
+    description: Skip uploading the generated plan artifact.
     required: false
-    default: 'false'
+    default: 'true'
   summary-mode:
-    description: 'Summary mode for validate/lint/trivy/checkov/test/plan/apply: `full`, `redacted`, or `off`'
+    description: Summary mode for validate, lint, trivy, checkov, test, plan, and apply. Allowed values are `full`, `redacted`, and `off`.
     required: false
-    default: 'full'
+    default: redacted
   comment-mode:
-    description: 'PR comment mode: `sticky` to update a single comment or `off` to disable comments'
+    description: PR comment mode. Use `sticky` to update a single comment or `off` to disable comments.
     required: false
-    default: 'sticky'
+    default: sticky
   comment-identifier:
-    description: 'Identifier used to find/update sticky PR comments'
+    description: Identifier used to find and update sticky PR comments.
     required: false
-    default: 'tf-github-action'
+    default: tf-github-action
 
+outputs:
+  env:
+    description: The provided deployment label.
+    value: ${{ steps.run.outputs.env }}
+  env_slug:
+    description: Sanitized deployment label used in artifacts and comment markers.
+    value: ${{ steps.run.outputs.env_slug }}
+  selected_steps:
+    description: Normalized comma-delimited step list.
+    value: ${{ steps.run.outputs.selected_steps }}
+  has_failures:
+    description: Whether any selected step failed.
+    value: ${{ steps.run.outputs.has_failures }}
+  validate_status:
+    description: Validate step status.
+    value: ${{ steps.run.outputs.validate_status }}
+  lint_status:
+    description: Lint step status.
+    value: ${{ steps.run.outputs.lint_status }}
+  trivy_status:
+    description: Trivy step status.
+    value: ${{ steps.run.outputs.trivy_status }}
+  checkov_status:
+    description: Checkov step status.
+    value: ${{ steps.run.outputs.checkov_status }}
+  test_status:
+    description: Test step status.
+    value: ${{ steps.run.outputs.test_status }}
+  plan_status:
+    description: Plan step status.
+    value: ${{ steps.run.outputs.plan_status }}
+  apply_status:
+    description: Apply step status.
+    value: ${{ steps.run.outputs.apply_status }}
+  has_changes:
+    description: Whether the plan detected changes.
+    value: ${{ steps.run.outputs.has_changes }}
+  create_count:
+    description: Planned creates.
+    value: ${{ steps.run.outputs.create_count }}
+  update_count:
+    description: Planned updates.
+    value: ${{ steps.run.outputs.update_count }}
+  destroy_count:
+    description: Planned destroys.
+    value: ${{ steps.run.outputs.destroy_count }}
+  plan_artifact_name:
+    description: Uploaded plan artifact name.
+    value: ${{ steps.run.outputs.plan_artifact_name }}
+  plan_artifact_sha256:
+    description: SHA256 digest of the generated plan artifact.
+    value: ${{ steps.run.outputs.plan_artifact_sha256 }}
+  added:
+    description: Applied creates.
+    value: ${{ steps.run.outputs.added }}
+  changed:
+    description: Applied updates.
+    value: ${{ steps.run.outputs.changed }}
+  destroyed:
+    description: Applied destroys.
+    value: ${{ steps.run.outputs.destroyed }}
+  imported:
+    description: Applied imports.
+    value: ${{ steps.run.outputs.imported }}
+  forgotten:
+    description: Applied forgets.
+    value: ${{ steps.run.outputs.forgotten }}
 
 runs:
-  using: 'composite'
+  using: composite
   steps:
+    - name: Preflight
+      id: preflight
+      shell: bash
+      run: node "$GITHUB_ACTION_PATH/dist/preflight/index.js"
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_WORKDIR: ${{ inputs.workdir }}
+        INPUT_ENV: ${{ inputs.env }}
+        INPUT_STEPS: ${{ inputs.steps }}
+        INPUT_TFVAR_FILES: ${{ inputs['tfvar-files'] }}
+        INPUT_TFVARS: ${{ inputs.tfvars }}
+        INPUT_BACKEND_CONFIG_VAR_FILES: ${{ inputs['backend-config-var-files'] }}
+        INPUT_BACKEND_CONFIG_VARS: ${{ inputs['backend-config-vars'] }}
+        INPUT_TEST_DIR: ${{ inputs['test-dir'] }}
+        INPUT_TEST_TFVAR_FILES: ${{ inputs['test-tfvar-files'] }}
+        INPUT_TEST_TFVARS: ${{ inputs['test-tfvars'] }}
+        INPUT_TFLINT_VERSION: ${{ inputs['tflint-version'] }}
+        INPUT_TRIVY_VERSION: ${{ inputs['trivy-version'] }}
+        INPUT_CHECKOV_VERSION: ${{ inputs['checkov-version'] }}
+        INPUT_TRIVY_SCAN_TYPE: ${{ inputs['trivy-scan-type'] }}
+        INPUT_CHECKOV_SKIP_CHECKS: ${{ inputs['checkov-skip-checks'] }}
+        INPUT_LOCK_TIMEOUT: ${{ inputs['lock-timeout'] }}
+        INPUT_PARALLELISM: ${{ inputs.parallelism }}
+        INPUT_REFRESH: ${{ inputs.refresh }}
+        INPUT_TARGETS: ${{ inputs.targets }}
+        INPUT_ARTIFACT_RETENTION_DAYS: ${{ inputs['artifact-retention-days'] }}
+        INPUT_SKIP_PLAN_UPLOAD: ${{ inputs['skip-plan-upload'] }}
+        INPUT_SUMMARY_MODE: ${{ inputs['summary-mode'] }}
+        INPUT_COMMENT_MODE: ${{ inputs['comment-mode'] }}
+        INPUT_COMMENT_IDENTIFIER: ${{ inputs['comment-identifier'] }}
+
     - name: Setup OpenTofu
-      uses: opentofu/setup-opentofu@v1
-      with:
-        tofu_version: ${{ inputs.version }}
-        tofu_wrapper: false
-
-    - name: Parse steps
-      id: parse-steps
+      if: ${{ steps.preflight.outputs.run_validate == 'true' || steps.preflight.outputs.run_plan == 'true' || steps.preflight.outputs.run_apply == 'true' || steps.preflight.outputs.run_test == 'true' }}
       shell: bash
-      run: |
-        STEPS_INPUT="${{ inputs.steps }}"
-        if [ -z "$STEPS_INPUT" ]; then
-          STEPS_INPUT="all"
-        fi
-
-        NORMALISED=$(echo "$STEPS_INPUT" | tr '\n,' ' ' | tr -s ' ' | xargs)
-
-        RUN_VALIDATE=false
-        RUN_PLAN=false
-        RUN_APPLY=false
-        RUN_TEST=false
-        RUN_LINT=false
-        RUN_TRIVY=false
-        RUN_CHECKOV=false
-
-        if [ -z "$NORMALISED" ] || [ "$NORMALISED" = "all" ] || [[ " $NORMALISED " == *" all "* ]]; then
-          RUN_VALIDATE=true
-          RUN_PLAN=true
-          RUN_APPLY=true
-          RUN_TEST=true
-          RUN_LINT=true
-          RUN_TRIVY=true
-          RUN_CHECKOV=true
-        else
-          PADDED=" $NORMALISED "
-          if [[ "$PADDED" == *" validate "* ]]; then
-            RUN_VALIDATE=true
-          fi
-          if [[ "$PADDED" == *" plan "* ]]; then
-            RUN_PLAN=true
-          fi
-          if [[ "$PADDED" == *" apply "* ]]; then
-            RUN_APPLY=true
-          fi
-          if [[ "$PADDED" == *" test "* ]]; then
-            RUN_TEST=true
-          fi
-          if [[ "$PADDED" == *" lint "* ]]; then
-            RUN_LINT=true
-          fi
-          if [[ "$PADDED" == *" trivy "* ]]; then
-            RUN_TRIVY=true
-          fi
-          if [[ "$PADDED" == *" checkov "* ]]; then
-            RUN_CHECKOV=true
-          fi
-        fi
-
-        echo "run_validate=$RUN_VALIDATE" >> $GITHUB_OUTPUT
-        echo "run_plan=$RUN_PLAN" >> $GITHUB_OUTPUT
-        echo "run_apply=$RUN_APPLY" >> $GITHUB_OUTPUT
-        echo "run_test=$RUN_TEST" >> $GITHUB_OUTPUT
-        echo "run_lint=$RUN_LINT" >> $GITHUB_OUTPUT
-        echo "run_trivy=$RUN_TRIVY" >> $GITHUB_OUTPUT
-        echo "run_checkov=$RUN_CHECKOV" >> $GITHUB_OUTPUT
-
-    - name: Parse CLI args
-      id: parse-cli-args
-      shell: bash
-      run: |
-        LOCK_TIMEOUT="${{ inputs['lock-timeout'] }}"
-        PARALLELISM="${{ inputs.parallelism }}"
-        REFRESH="${{ inputs.refresh }}"
-        TARGETS="${{ inputs.targets }}"
-        COMMON_ARGS=""
-        PLAN_ARGS=""
-        APPLY_ARGS=""
-
-        if [ -n "$LOCK_TIMEOUT" ]; then
-          COMMON_ARGS="$COMMON_ARGS -lock-timeout=$LOCK_TIMEOUT"
-        fi
-
-        if [ -n "$PARALLELISM" ]; then
-          COMMON_ARGS="$COMMON_ARGS -parallelism=$PARALLELISM"
-        fi
-
-        if [ -n "$REFRESH" ]; then
-          case "$REFRESH" in
-            true|false)
-              PLAN_ARGS="$PLAN_ARGS -refresh=$REFRESH"
-              ;;
-            *)
-              echo "Error: refresh must be 'true' or 'false'"
-              exit 1
-              ;;
-          esac
-        fi
-
-        if [ -n "$TARGETS" ]; then
-          NORMALISED_TARGETS=$(echo "$TARGETS" | tr '\n,' ' ' | tr -s ' ')
-          for target in $NORMALISED_TARGETS; do
-            target=$(echo "$target" | xargs)
-            if [ -n "$target" ]; then
-              PLAN_ARGS="$PLAN_ARGS -target=$target"
-            fi
-          done
-        fi
-
-        COMMON_ARGS=$(echo "$COMMON_ARGS" | sed 's/^ *//')
-        PLAN_ARGS=$(echo "$PLAN_ARGS" | sed 's/^ *//')
-
-        if [ -n "$COMMON_ARGS" ]; then
-          APPLY_ARGS="$COMMON_ARGS"
-          if [ -n "$PLAN_ARGS" ]; then
-            PLAN_ARGS="$COMMON_ARGS $PLAN_ARGS"
-          else
-            PLAN_ARGS="$COMMON_ARGS"
-          fi
-        fi
-
-        PLAN_ARGS=$(echo "$PLAN_ARGS" | sed 's/^ *//')
-        APPLY_ARGS=$(echo "$APPLY_ARGS" | sed 's/^ *//')
-
-        echo "plan_args=$PLAN_ARGS" >> $GITHUB_OUTPUT
-        echo "apply_args=$APPLY_ARGS" >> $GITHUB_OUTPUT
-
-    - name: Parse artifact retention
-      id: parse-retention
-      shell: bash
-      run: |
-        RETENTION_DAYS="${{ inputs['artifact-retention-days'] }}"
-        if [ -n "$RETENTION_DAYS" ]; then
-          if ! [[ "$RETENTION_DAYS" =~ ^[0-9]+$ ]]; then
-            echo "Error: artifact-retention-days must be a number"
-            exit 1
-          fi
-          if [ "$RETENTION_DAYS" -lt 1 ] || [ "$RETENTION_DAYS" -gt 90 ]; then
-            echo "Error: artifact-retention-days must be between 1 and 90"
-            exit 1
-          fi
-          echo "retention_days=$RETENTION_DAYS" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Parse backend config files
-      id: parse-backend-config-files
-      shell: bash
-      working-directory: ${{ inputs.workdir }}
-      run: |
-        BACKEND_CONFIG_FILES="${{ inputs['backend-config-var-files'] }}"
-        BACKEND_CONFIG_ARGS=""
-
-        if [ -n "$BACKEND_CONFIG_FILES" ]; then
-          NORMALISED_FILES=$(echo "$BACKEND_CONFIG_FILES" | tr '\n,' ' ' | tr -s ' ')
-
-          # Convert to array and build -backend-config arguments
-          for file in $NORMALISED_FILES; do
-            # Trim whitespace
-            file=$(echo "$file" | xargs)
-            if [ -n "$file" ]; then
-              # Verify file exists
-              if [ -f "$file" ]; then
-                BACKEND_CONFIG_ARGS="$BACKEND_CONFIG_ARGS -backend-config=$file"
-                echo "Added backend config file: $file"
-              else
-                echo "Warning: backend config file not found: $file"
-                exit 1
-              fi
-            fi
-          done
-
-          # Remove leading space
-          BACKEND_CONFIG_ARGS=$(echo "$BACKEND_CONFIG_ARGS" | sed 's/^ *//')
-        fi
-
-        echo "backend-config-file-args=$BACKEND_CONFIG_ARGS" >> $GITHUB_OUTPUT
-        echo "Backend config file arguments: $BACKEND_CONFIG_ARGS"
-
-    - name: Parse backend config vars
-      id: parse-backend-config-vars
-      shell: bash
-      run: |
-        BACKEND_CONFIG_VARS="${{ inputs['backend-config-vars'] }}"
-        BACKEND_CONFIG_ARGS=""
-
-        if [ -n "$BACKEND_CONFIG_VARS" ]; then
-          # Handle spaces, newlines, and commas as separators
-          # First normalize all separators to spaces, then split on spaces
-          NORMALISED_VARS=$(echo "$BACKEND_CONFIG_VARS" | tr '\n,' ' ' | tr -s ' ')
-
-          # Split by spaces and process each key=value pair
-          read -ra PAIRS <<< "$NORMALISED_VARS"
-          for pair in "${PAIRS[@]}"; do
-            pair=$(echo "$pair" | xargs)
-            if [ -n "$pair" ]; then
-              # Validate key=value format (backend config keys can be more flexible)
-              if [[ "$pair" =~ ^[a-zA-Z_][a-zA-Z0-9_.-]*=.* ]]; then
-                BACKEND_CONFIG_ARGS="$BACKEND_CONFIG_ARGS -backend-config=$pair"
-                echo "Added backend config: ${pair%%=*}"
-              else
-                echo "Error: Invalid backend config format: $pair"
-                echo "Expected format: key=value"
-                exit 1
-              fi
-            fi
-          done
-
-          # Remove leading space
-          BACKEND_CONFIG_ARGS=$(echo "$BACKEND_CONFIG_ARGS" | sed 's/^ *//')
-        fi
-
-        echo "backend-config-args=$BACKEND_CONFIG_ARGS" >> $GITHUB_OUTPUT
-        echo "Backend config arguments: $BACKEND_CONFIG_ARGS"
-
-    - name: Init
-      shell: bash
-      working-directory: ${{ inputs.workdir }}
-      run: |
-        tofu init ${{ steps.parse-backend-config-files.outputs.backend-config-file-args }} \
-        ${{ steps.parse-backend-config-vars.outputs.backend-config-args }}
-
-    - name: Parse tfvar files
-      id: parse-tfvar-files
-      shell: bash
-      working-directory: ${{ inputs.workdir }}
-      run: |
-        TFVAR_FILES="${{ inputs['tfvar-files'] }}"
-        TFVAR_ARGS=""
-
-        if [ -n "$TFVAR_FILES" ]; then
-          # Handle spaces, newlines, and commas as separators
-          NORMALISED_FILES=$(echo "$TFVAR_FILES" | tr '\n,' ' ' | tr -s ' ')
-
-          # Convert to array and build -var-file arguments
-          for file in $NORMALISED_FILES; do
-            # Trim whitespace
-            file=$(echo "$file" | xargs)
-            if [ -n "$file" ]; then
-              # Verify file exists
-              if [ -f "$file" ]; then
-                TFVAR_ARGS="$TFVAR_ARGS -var-file=$file"
-                echo "Added tfvar file: $file"
-              else
-                echo "Warning: tfvar file not found: $file"
-                exit 1
-              fi
-            fi
-          done
-
-          # Remove leading space
-          TFVAR_ARGS=$(echo "$TFVAR_ARGS" | sed 's/^ *//')
-        fi
-
-        echo "tfvar-file-args=$TFVAR_ARGS" >> $GITHUB_OUTPUT
-        echo "Tfvar file arguments: $TFVAR_ARGS"
-
-    - name: Parse tfvars
-      id: parse-tfvars
-      shell: bash
-      run: |
-        TFVARS="${{ inputs.tfvars }}"
-        TFVAR_ARGS=""
-
-        if [ -n "$TFVARS" ]; then
-          # Handle spaces, newlines, and commas as separators
-          NORMALISED_VARS=$(echo "$TFVARS" | tr '\n,' ' ' | tr -s ' ')
-
-          # Split by spaces and process each key=value pair
-          read -ra PAIRS <<< "$NORMALISED_VARS"
-          for pair in "${PAIRS[@]}"; do
-            pair=$(echo "$pair" | xargs)
-            if [ -n "$pair" ]; then
-              # Validate key=value format
-              if [[ "$pair" =~ ^[a-zA-Z_][a-zA-Z0-9_]*=.* ]]; then
-                TFVAR_ARGS="$TFVAR_ARGS -var=$pair"
-                echo "Added tfvar: ${pair%%=*}"
-              else
-                echo "Error: Invalid tfvar format: $pair"
-                echo "Expected format: key=value"
-                exit 1
-              fi
-            fi
-          done
-
-          # Remove leading space
-          TFVAR_ARGS=$(echo "$TFVAR_ARGS" | sed 's/^ *//')
-        fi
-
-        echo "tfvar-args=$TFVAR_ARGS" >> $GITHUB_OUTPUT
-
-    - name: Resolve test variables
-      id: resolve-test-vars
-      if: ${{ steps.parse-steps.outputs.run_test == 'true' }}
-      shell: bash
-      run: |
-        TEST_TFVAR_FILES="${{ inputs['test-tfvar-files'] }}"
-        if [ -z "$TEST_TFVAR_FILES" ]; then
-          TEST_TFVAR_FILES="${{ inputs['tfvar-files'] }}"
-        fi
-
-        TEST_TFVARS="${{ inputs['test-tfvars'] }}"
-        if [ -z "$TEST_TFVARS" ]; then
-          TEST_TFVARS="${{ inputs['tfvars'] }}"
-        fi
-
-        echo "test_tfvar_files=$TEST_TFVAR_FILES" >> $GITHUB_OUTPUT
-        echo "test_tfvars=$TEST_TFVARS" >> $GITHUB_OUTPUT
-
-    - name: Parse test tfvar files
-      id: parse-test-tfvar-files
-      if: ${{ steps.parse-steps.outputs.run_test == 'true' }}
-      shell: bash
-      working-directory: ${{ inputs.workdir }}
-      run: |
-        TEST_TFVAR_FILES="${{ steps.resolve-test-vars.outputs.test_tfvar_files }}"
-        TEST_TFVAR_ARGS=""
-
-        if [ -n "$TEST_TFVAR_FILES" ]; then
-          NORMALISED_FILES=$(echo "$TEST_TFVAR_FILES" | tr '\n,' ' ' | tr -s ' ')
-
-          for file in $NORMALISED_FILES; do
-            file=$(echo "$file" | xargs)
-            if [ -n "$file" ]; then
-              if [ -f "$file" ]; then
-                TEST_TFVAR_ARGS="$TEST_TFVAR_ARGS -var-file=$file"
-                echo "Added test tfvar file: $file"
-              else
-                echo "Warning: test tfvar file not found: $file"
-                exit 1
-              fi
-            fi
-          done
-
-          TEST_TFVAR_ARGS=$(echo "$TEST_TFVAR_ARGS" | sed 's/^ *//')
-        fi
-
-        echo "test-tfvar-file-args=$TEST_TFVAR_ARGS" >> $GITHUB_OUTPUT
-
-    - name: Parse test tfvars
-      id: parse-test-tfvars
-      if: ${{ steps.parse-steps.outputs.run_test == 'true' }}
-      shell: bash
-      run: |
-        TEST_TFVARS="${{ steps.resolve-test-vars.outputs.test_tfvars }}"
-        TEST_TFVAR_ARGS=""
-
-        if [ -n "$TEST_TFVARS" ]; then
-          NORMALISED_VARS=$(echo "$TEST_TFVARS" | tr '\n,' ' ' | tr -s ' ')
-
-          read -ra PAIRS <<< "$NORMALISED_VARS"
-          for pair in "${PAIRS[@]}"; do
-            pair=$(echo "$pair" | xargs)
-            if [ -n "$pair" ]; then
-              if [[ "$pair" =~ ^[a-zA-Z_][a-zA-Z0-9_]*=.* ]]; then
-                TEST_TFVAR_ARGS="$TEST_TFVAR_ARGS -var=$pair"
-                echo "Added test tfvar: ${pair%%=*}"
-              else
-                echo "Error: Invalid test tfvar format: $pair"
-                echo "Expected format: key=value"
-                exit 1
-              fi
-            fi
-          done
-
-          TEST_TFVAR_ARGS=$(echo "$TEST_TFVAR_ARGS" | sed 's/^ *//')
-        fi
-
-        echo "test-tfvar-args=$TEST_TFVAR_ARGS" >> $GITHUB_OUTPUT
-
-    - name: Parse Checkov skip checks
-      id: parse-checkov-skip-checks
-      if: ${{ steps.parse-steps.outputs.run_checkov == 'true' }}
-      shell: bash
-      run: |
-        CHECKOV_SKIP_CHECKS="${{ inputs['checkov-skip-checks'] }}"
-        CHECKOV_SKIP_LIST=""
-
-        if [ -n "$CHECKOV_SKIP_CHECKS" ]; then
-          NORMALISED_CHECKS=$(echo "$CHECKOV_SKIP_CHECKS" | tr '\n,' ' ' | tr -s ' ')
-          CHECKS_LIST=$(echo "$NORMALISED_CHECKS" | tr ' ' ',' | sed 's/^,*//;s/,*$//;s/,,*/,/g')
-          if [ -n "$CHECKS_LIST" ]; then
-            CHECKOV_SKIP_LIST="$CHECKS_LIST"
-          fi
-        fi
-
-        echo "checkov_skip_checks=$CHECKOV_SKIP_LIST" >> $GITHUB_OUTPUT
-
-    - name: Validate
-      id: validate
-      if: ${{ steps.parse-steps.outputs.run_validate == 'true' }}
-      shell: bash
-      working-directory: ${{ inputs.workdir }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/install-opentofu.sh"
       env:
-        ENV_SUFFIX: ${{ inputs.env != '' && format(' ({0})', inputs.env) || '' }}
-      run: |
-        SUMMARY_MODE="${{ inputs['summary-mode'] }}"
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_TOFU_CHECKSUMS: ${{ inputs['tofu-checksums'] }}
 
-        if [ -z "$SUMMARY_MODE" ]; then
-          SUMMARY_MODE="full"
-        fi
-
-        case "$SUMMARY_MODE" in
-          full|redacted|off)
-            ;;
-          *)
-            echo "Error: summary-mode must be full, redacted, or off"
-            exit 1
-            ;;
-        esac
-
-        set +e
-        FMT_DIFF=$(tofu fmt -check -diff)
-        FMT_SUMMARY=$(tofu fmt -check | xargs)
-        VALIDATE_JSON=$(tofu validate ${{ steps.parse-tfvar-files.outputs.tfvar-file-args }} ${{ steps.parse-tfvars.outputs.tfvar-args }} -json)
-        IS_VALID=$(echo "$VALIDATE_JSON" | jq -r '.valid')
-        set -e
-
-        CURRENT_BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF_NAME:-main}}
-        SOURCE_REPO="$GITHUB_REPOSITORY"
-        SOURCE_REF="$CURRENT_BRANCH"
-
-        if [ "${GITHUB_EVENT_NAME}" = "pull_request" ] && [ -f "$GITHUB_EVENT_PATH" ]; then
-          PR_REPO=$(jq -r '.pull_request.head.repo.full_name // empty' "$GITHUB_EVENT_PATH")
-          PR_REF=$(jq -r '.pull_request.head.ref // empty' "$GITHUB_EVENT_PATH")
-          if [ -n "$PR_REPO" ]; then
-            SOURCE_REPO="$PR_REPO"
-          fi
-          if [ -n "$PR_REF" ]; then
-            SOURCE_REF="$PR_REF"
-          fi
-        fi
-
-        VALIDATION_SUMMARY="| Check | Status | Details |
-        |-------|--------|---------|
-        "
-        VALIDATION_ERRORS=""
-
-        HAS_FAILURES=false
-
-        if [ -z "$FMT_SUMMARY" ]; then
-          echo "fmt_failed=false" >> $GITHUB_OUTPUT
-          VALIDATION_SUMMARY+="| 🎯 Tofu Format | ✅ Pass | All files are properly formatted |
-          "
-        else
-          # Output fmt failure flag
-          echo "fmt_failed=true" >> $GITHUB_OUTPUT
-          HAS_FAILURES=true
-
-          # Output fmt summary
-          printf 'fmt_summary=%s\n' "$FMT_SUMMARY" >> "$GITHUB_OUTPUT"
-
-          VALIDATION_SUMMARY+="| 🎯 Tofu Format | ❌ Fail | \`$FMT_SUMMARY\` |
-          "
-          VALIDATION_ERRORS+="### 🎯 Format Issues
-          Format validation has failed on the following files: **$FMT_SUMMARY**
-
-          🔧 Changes Required:
-          \`\`\`diff
-          $FMT_DIFF
-          \`\`\`
-
-          > [!NOTE]
-          > Running \`tofu fmt --recursive\` from your repository will auto fix these formatting issues.
-          > Better yet, set this up in your [pre-commit config](https://github.com/tofuutils/pre-commit-opentofu?tab=readme-ov-file#tofu_fmt) to never let formatting issues break a pipeline ever again!
-
-          "
-        fi
-
-        if [ "$IS_VALID" = "true" ]; then
-          echo "validate_failed=false" >> $GITHUB_OUTPUT
-          VALIDATION_SUMMARY+="| 🔍 Tofu Validate | ✅ Pass | Configuration is valid |
-          "
-        else
-          echo "validate_failed=true" >> $GITHUB_OUTPUT
-          HAS_FAILURES=true
-
-          # Count different error types
-          TOTAL_VALIDATE_ERRORS=$(echo "$VALIDATE_JSON" | jq -r '.error_count // 0')
-
-          # Group errors by summary
-          VALIDATE_SUMMARY=$(echo "$VALIDATE_JSON" | jq -r '
-            [.diagnostics[] | .summary] |
-            group_by(.) |
-            map({
-              summary: .[0],
-              count: length
-            }) |
-            map(
-              if .count == 1 then
-                (.count | tostring) + " " + (.summary | ascii_downcase)
-              else
-                (.count | tostring) + " " + (.summary | ascii_downcase) + "s"
-              end
-            ) |
-            if length == 1 then
-              .[0]
-            elif length == 2 then
-              .[0] + " & " + .[1]
-            else
-              (.[0:-1] | join(", ")) + " & " + .[-1]
-            end
-          ')
-
-          # Generate detailed validate output
-          VALIDATE_DETAILED=$(echo "$VALIDATE_JSON" | jq -r --arg repo "$SOURCE_REPO" --arg ref "$SOURCE_REF" --arg workdir "${{ inputs.workdir }}" '
-            .diagnostics[] |
-            "**" + (.severity[0:1] | ascii_upcase) + .severity[1:] + ":** " + .summary + "\n" +
-            "**Detail:** " + .detail + "\n" +
-            (if .address then "**Resource:** `" + .address + "`\n" else "" end) +
-            (
-              if (.range? and .range.filename?) then
-                "**File:** `" + .range.filename + "` (Line " + ((.range.start.line // 0) | tostring) + ", Column " + ((.range.start.column // 0) | tostring) + ")\n"
-              else
-                "**File:** `unknown`\n"
-              end
-            ) +
-            (
-              if env.GITHUB_SERVER_URL and ($repo | length) > 0 and ($ref | length) > 0 and (.range? and .range.filename?) then
-                " 📍 [View in file](" +
-                env.GITHUB_SERVER_URL + "/" +
-                $repo + "/blob/" +
-                $ref + "/" +
-                $workdir + "/" +
-                .range.filename + "#L" +
-                ((.range.start.line // 0) | tostring) + "-L" +
-                ((.range.end.line // 0) | tostring) + ")\n"
-              else "" end
-            ) +
-            "# \n"
-          ')
-
-          VALIDATION_SUMMARY+="| 🔍 Tofu Validate | ❌ Fail | $VALIDATE_SUMMARY |
-          "
-
-          # Output validate summary
-          echo "validate_summary=$VALIDATE_SUMMARY" >> $GITHUB_OUTPUT
-
-          VALIDATION_ERRORS+="
-          ### ⚠️ Syntax / Configuration Issues
-          Syntax Validation Failed with **$TOTAL_VALIDATE_ERRORS** errors
-
-          $VALIDATE_DETAILED
-          "
-        fi
-
-        echo "has_failures=$HAS_FAILURES" >> $GITHUB_OUTPUT
-
-        if [ "$SUMMARY_MODE" = "full" ]; then
-          {
-            printf '%s\n' "## 🧪 Tofu Validate${ENV_SUFFIX}" "" "$VALIDATION_SUMMARY" "" "$VALIDATION_ERRORS"
-          } >> "$GITHUB_STEP_SUMMARY"
-        elif [ "$SUMMARY_MODE" = "redacted" ]; then
-          FMT_STATUS="✅ Pass"
-          FMT_DETAIL="All files are properly formatted"
-          if [ -n "$FMT_SUMMARY" ]; then
-            FMT_STATUS="❌ Fail"
-            FMT_DETAIL="\`$FMT_SUMMARY\`"
-          fi
-
-          VALIDATE_STATUS="✅ Pass"
-          VALIDATE_DETAIL="Configuration is valid"
-          if [ "$IS_VALID" != "true" ]; then
-            VALIDATE_STATUS="❌ Fail"
-            VALIDATE_DETAIL="$VALIDATE_SUMMARY"
-          fi
-
-          REDACTED_SUMMARY=$(printf '%s\n' \
-            '| Check | Status | Details |' \
-            '|-------|--------|---------|' \
-            "| 🎯 Tofu Format | $FMT_STATUS | $FMT_DETAIL |" \
-            "| 🔍 Tofu Validate | $VALIDATE_STATUS | $VALIDATE_DETAIL |" \
-          )
-          {
-            printf '%s\n' "## 🧪 Tofu Validate${ENV_SUFFIX}" "" "$REDACTED_SUMMARY" ""
-          } >> "$GITHUB_STEP_SUMMARY"
-        fi
-
-
-    - name: Setup TFLint
-      if: ${{ steps.parse-steps.outputs.run_lint == 'true' }}
-      uses: terraform-linters/setup-tflint@v4
-      with:
-        tflint_version: ${{ inputs['tflint-version'] }}
-
-    - name: Lint
-      id: lint
-      if: ${{ steps.parse-steps.outputs.run_lint == 'true' }}
+    - name: Install TFLint
+      if: ${{ steps.preflight.outputs.run_lint == 'true' }}
       shell: bash
-      working-directory: ${{ inputs.workdir }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/install-tflint.sh"
       env:
-        ENV_SUFFIX: ${{ inputs.env != '' && format(' ({0})', inputs.env) || '' }}
-      run: |
-        SUMMARY_MODE="${{ inputs['summary-mode'] }}"
+        INPUT_TFLINT_VERSION: ${{ inputs['tflint-version'] }}
+        INPUT_TFLINT_CHECKSUMS: ${{ inputs['tflint-checksums'] }}
 
-        if [ -z "$SUMMARY_MODE" ]; then
-          SUMMARY_MODE="full"
-        fi
-
-        case "$SUMMARY_MODE" in
-          full|redacted|off)
-            ;;
-          *)
-            echo "Error: summary-mode must be full, redacted, or off"
-            exit 1
-            ;;
-        esac
-
-        CONFIG_ARG=""
-        TFLINT_CONFIG=""
-        if [ -f ".tflint.hcl" ]; then
-          TFLINT_CONFIG="$(pwd)/.tflint.hcl"
-        elif [ -f "$GITHUB_WORKSPACE/.tflint.hcl" ]; then
-          TFLINT_CONFIG="$GITHUB_WORKSPACE/.tflint.hcl"
-        elif [ -f "$GITHUB_ACTION_PATH/.tflint.hcl" ]; then
-          TFLINT_CONFIG="$GITHUB_ACTION_PATH/.tflint.hcl"
-        fi
-
-        if [ -n "$TFLINT_CONFIG" ]; then
-          CONFIG_ARG="--config $TFLINT_CONFIG"
-        fi
-
-        if ! find . -name "*.tf" -print -quit | grep -q .; then
-          echo "::warning::No Terraform/OpenTofu files found to lint in '${{ inputs.workdir }}'."
-          echo "lint_ran=false" >> $GITHUB_OUTPUT
-          echo "lint_skipped=true" >> $GITHUB_OUTPUT
-          echo "lint_failed=false" >> $GITHUB_OUTPUT
-          echo "lint_status=skipped" >> $GITHUB_OUTPUT
-          echo "lint_details=No Terraform/OpenTofu files found to lint." >> $GITHUB_OUTPUT
-          exit 0
-        fi
-
-        INIT_EXIT=0
-        if [ -n "$CONFIG_ARG" ]; then
-          set +e
-          tflint $CONFIG_ARG --init
-          INIT_EXIT=$?
-          set -e
-        fi
-
-        set +e
-        tflint $CONFIG_ARG > lint_output.txt 2>&1
-        LINT_EXIT=$?
-        set -e
-
-        if [ "$INIT_EXIT" -ne 0 ]; then
-          LINT_EXIT=$INIT_EXIT
-        fi
-
-        LINT_ISSUE_COUNT=$( { grep -Eo '[0-9]+ (issue|issues)\\(s\\)? found' lint_output.txt | head -1 | awk '{print $1}'; } || true)
-        if [ -z "$LINT_ISSUE_COUNT" ] || [ "$LINT_ISSUE_COUNT" -eq 0 ]; then
-          LINT_ISSUE_COUNT=$( { grep -E '^(Warning|Error|Notice):' lint_output.txt | wc -l | tr -d ' '; } || true)
-        fi
-        if [ -z "$LINT_ISSUE_COUNT" ]; then
-          LINT_ISSUE_COUNT=0
-        fi
-
-        if [ "$LINT_EXIT" -eq 0 ]; then
-          LINT_STATUS="pass"
-          LINT_DETAILS="${LINT_ISSUE_COUNT} issue(s) found."
-          echo "lint_failed=false" >> $GITHUB_OUTPUT
-        else
-          LINT_STATUS="fail"
-          if [ "$LINT_ISSUE_COUNT" -gt 0 ]; then
-            LINT_DETAILS="${LINT_ISSUE_COUNT} issue(s) found."
-          else
-            LINT_DETAILS="TFLint failed before reporting results."
-          fi
-          echo "lint_failed=true" >> $GITHUB_OUTPUT
-        fi
-
-        echo "lint_ran=true" >> $GITHUB_OUTPUT
-        echo "lint_skipped=false" >> $GITHUB_OUTPUT
-        echo "lint_status=$LINT_STATUS" >> $GITHUB_OUTPUT
-        echo "lint_issue_count=$LINT_ISSUE_COUNT" >> $GITHUB_OUTPUT
-        printf 'lint_details=%s\n' "$LINT_DETAILS" >> "$GITHUB_OUTPUT"
-
-        if [ "$LINT_STATUS" = "pass" ]; then
-          LINT_SUMMARY_STATUS="✅ Pass"
-        else
-          LINT_SUMMARY_STATUS="❌ Fail"
-        fi
-
-        LINT_OUTPUT=""
-        if [ "$LINT_STATUS" = "fail" ]; then
-          LINT_ISSUES=$(grep -E ":[0-9]+:[0-9]+: (Warning|Error|Notice) -" lint_output.txt || true)
-          if [ -z "$LINT_ISSUES" ]; then
-            LINT_ISSUES=$(cat lint_output.txt)
-          fi
-          LINT_OUTPUT=$(printf '%s\n' \
-            "### ⚠️ Lint Issues" \
-            "TFLint reported ${LINT_ISSUE_COUNT} issue(s)." \
-            "" \
-            '```' \
-            "$LINT_ISSUES" \
-            '```' \
-          )
-        fi
-
-        if [ "$SUMMARY_MODE" = "full" ]; then
-          {
-            printf '%s\n' "## 🧹 Tofu Lint${ENV_SUFFIX}" "" \
-              "| Check | Status | Details |" \
-              "|-------|--------|---------|" \
-              "| 🧹 TFLint | $LINT_SUMMARY_STATUS | $LINT_DETAILS |" \
-              "" \
-              "$LINT_OUTPUT" \
-              ""
-          } >> "$GITHUB_STEP_SUMMARY"
-        elif [ "$SUMMARY_MODE" = "redacted" ]; then
-          {
-            printf '%s\n' "## 🧹 Tofu Lint${ENV_SUFFIX}" "" \
-              "| Check | Status | Details |" \
-              "|-------|--------|---------|" \
-              "| 🧹 TFLint | $LINT_SUMMARY_STATUS | $LINT_DETAILS |" \
-              ""
-          } >> "$GITHUB_STEP_SUMMARY"
-        fi
-
-    - name: Resolve Trivy config
-      id: trivy-config
-      if: ${{ steps.parse-steps.outputs.run_trivy == 'true' }}
+    - name: Install Trivy
+      if: ${{ steps.preflight.outputs.run_trivy == 'true' }}
       shell: bash
-      working-directory: ${{ inputs.workdir }}
-      run: |
-        TRIVY_CONFIG=""
-        if [ -f ".trivy.yaml" ]; then
-          TRIVY_CONFIG="$(pwd)/.trivy.yaml"
-        elif [ -f "$GITHUB_WORKSPACE/.trivy.yaml" ]; then
-          TRIVY_CONFIG="$GITHUB_WORKSPACE/.trivy.yaml"
-        elif [ -f "$GITHUB_ACTION_PATH/.trivy.yaml" ]; then
-          TRIVY_CONFIG="$GITHUB_ACTION_PATH/.trivy.yaml"
-        fi
-
-        echo "config_path=$TRIVY_CONFIG" >> $GITHUB_OUTPUT
-
-    - name: Trivy precheck
-      id: trivy-precheck
-      if: ${{ steps.parse-steps.outputs.run_trivy == 'true' }}
-      shell: bash
-      working-directory: ${{ inputs.workdir }}
-      run: |
-        if ! find . \( -name "*.tf" -o -name "*.tf.json" -o -name "*.tfvars" -o -name "*.tfvars.json" \) -print -quit | grep -q .; then
-          echo "skip_trivy=true" >> $GITHUB_OUTPUT
-        else
-          echo "skip_trivy=false" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Run Trivy
-      id: trivy-run
-      if: ${{ steps.parse-steps.outputs.run_trivy == 'true' && steps.trivy-precheck.outputs.skip_trivy != 'true' }}
-      continue-on-error: true
-      uses: aquasecurity/trivy-action@0.33.1
-      with:
-        scan-type: ${{ inputs['trivy-scan-type'] }}
-        scan-ref: ${{ inputs.workdir }}
-        format: json
-        output: ${{ inputs.workdir }}/trivy_output.json
-        version: ${{ inputs['trivy-version'] }}
-        trivy-config: ${{ steps.trivy-config.outputs.config_path }}
-
-    - name: Trivy Summary
-      id: trivy
-      if: ${{ steps.parse-steps.outputs.run_trivy == 'true' }}
-      shell: bash
-      working-directory: ${{ inputs.workdir }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/install-trivy.sh"
       env:
-        ENV_SUFFIX: ${{ inputs.env != '' && format(' ({0})', inputs.env) || '' }}
-      run: |
-        SUMMARY_MODE="${{ inputs['summary-mode'] }}"
+        INPUT_TRIVY_VERSION: ${{ inputs['trivy-version'] }}
+        INPUT_TRIVY_CHECKSUMS: ${{ inputs['trivy-checksums'] }}
 
-        if [ -z "$SUMMARY_MODE" ]; then
-          SUMMARY_MODE="full"
-        fi
-
-        case "$SUMMARY_MODE" in
-          full|redacted|off)
-            ;;
-          *)
-            echo "Error: summary-mode must be full, redacted, or off"
-            exit 1
-            ;;
-        esac
-
-        if [ "${{ steps.trivy-precheck.outputs.skip_trivy }}" = "true" ]; then
-          echo "::warning::No Terraform/OpenTofu files found to scan with Trivy in '${{ inputs.workdir }}'."
-          echo "trivy_ran=false" >> $GITHUB_OUTPUT
-          echo "trivy_skipped=true" >> $GITHUB_OUTPUT
-          echo "trivy_failed=false" >> $GITHUB_OUTPUT
-          echo "trivy_status=skipped" >> $GITHUB_OUTPUT
-          echo "trivy_issue_count=0" >> $GITHUB_OUTPUT
-          echo "trivy_details=No Terraform/OpenTofu files found to scan." >> $GITHUB_OUTPUT
-          exit 0
-        fi
-
-        TRIVY_OUTCOME="${{ steps.trivy-run.outcome }}"
-        TRIVY_ISSUE_COUNT=0
-        if [ -f trivy_output.json ]; then
-          TRIVY_ISSUE_COUNT=$(jq '[.Results[]?.Misconfigurations[]? | select(.Status == "FAIL")] | length' trivy_output.json 2>/dev/null || echo 0)
-        fi
-
-        if [ -z "$TRIVY_ISSUE_COUNT" ]; then
-          TRIVY_ISSUE_COUNT=0
-        fi
-
-        if [ "$TRIVY_OUTCOME" = "success" ]; then
-          TRIVY_STATUS="pass"
-          TRIVY_DETAILS="${TRIVY_ISSUE_COUNT} issue(s) found."
-          echo "trivy_failed=false" >> $GITHUB_OUTPUT
-        else
-          TRIVY_STATUS="fail"
-          if [ "$TRIVY_ISSUE_COUNT" -gt 0 ]; then
-            TRIVY_DETAILS="${TRIVY_ISSUE_COUNT} issue(s) found."
-          else
-            TRIVY_DETAILS="Trivy scan failed before reporting results."
-          fi
-          echo "trivy_failed=true" >> $GITHUB_OUTPUT
-        fi
-
-        echo "trivy_ran=true" >> $GITHUB_OUTPUT
-        echo "trivy_skipped=false" >> $GITHUB_OUTPUT
-        echo "trivy_status=$TRIVY_STATUS" >> $GITHUB_OUTPUT
-        echo "trivy_issue_count=$TRIVY_ISSUE_COUNT" >> $GITHUB_OUTPUT
-        printf 'trivy_details=%s\n' "$TRIVY_DETAILS" >> "$GITHUB_OUTPUT"
-
-        if [ "$TRIVY_STATUS" = "pass" ]; then
-          TRIVY_SUMMARY_STATUS="✅ Pass"
-        else
-          TRIVY_SUMMARY_STATUS="❌ Fail"
-        fi
-
-        TRIVY_OUTPUT=""
-        if [ "$TRIVY_ISSUE_COUNT" -gt 0 ]; then
-          TRIVY_ISSUES=$(jq -r '
-            [.Results[]?.Misconfigurations[]? | select(.Status == "FAIL")] |
-            map("- [" + (.Severity // "UNKNOWN") + "] " + (.ID // "UNKNOWN") + ": " + (.Title // "Issue") + (if .CauseMetadata.Resource then " (" + .CauseMetadata.Resource + ")" else "" end)) |
-            .[]
-          ' trivy_output.json 2>/dev/null || true)
-          if [ -z "$TRIVY_ISSUES" ]; then
-            TRIVY_ISSUES="Trivy findings available in trivy_output.json."
-          fi
-          TRIVY_OUTPUT=$(printf '%s\n' \
-            "### ⚠️ Trivy Issues" \
-            "Trivy reported ${TRIVY_ISSUE_COUNT} issue(s)." \
-            "" \
-            '```' \
-            "$TRIVY_ISSUES" \
-            '```' \
-          )
-        fi
-
-        if [ "$SUMMARY_MODE" = "full" ]; then
-          {
-            printf '%s\n' "## 🛡️ Tofu Trivy${ENV_SUFFIX}" "" \
-              "| Check | Status | Details |" \
-              "|-------|--------|---------|" \
-              "| 🛡️ Trivy | $TRIVY_SUMMARY_STATUS | $TRIVY_DETAILS |" \
-              "" \
-              "$TRIVY_OUTPUT" \
-              ""
-          } >> "$GITHUB_STEP_SUMMARY"
-        elif [ "$SUMMARY_MODE" = "redacted" ]; then
-          {
-            printf '%s\n' "## 🛡️ Tofu Trivy${ENV_SUFFIX}" "" \
-              "| Check | Status | Details |" \
-              "|-------|--------|---------|" \
-              "| 🛡️ Trivy | $TRIVY_SUMMARY_STATUS | $TRIVY_DETAILS |" \
-              ""
-          } >> "$GITHUB_STEP_SUMMARY"
-        fi
-
-    - name: Resolve Checkov config
-      id: checkov-config
-      if: ${{ steps.parse-steps.outputs.run_checkov == 'true' }}
-      shell: bash
-      run: |
-        CHECKOV_CONFIG=""
-        WORKDIR="${{ inputs.workdir }}"
-
-        if [ -f "$WORKDIR/.checkov.yaml" ]; then
-          CHECKOV_CONFIG="$WORKDIR/.checkov.yaml"
-        elif [ -f "$GITHUB_WORKSPACE/.checkov.yaml" ]; then
-          CHECKOV_CONFIG=".checkov.yaml"
-        elif [ -f "$GITHUB_ACTION_PATH/.checkov.yaml" ]; then
-          DEFAULT_CONFIG=".checkov.action.yaml"
-          cp "$GITHUB_ACTION_PATH/.checkov.yaml" "$GITHUB_WORKSPACE/$DEFAULT_CONFIG"
-          CHECKOV_CONFIG="$DEFAULT_CONFIG"
-        fi
-
-        echo "config_path=$CHECKOV_CONFIG" >> $GITHUB_OUTPUT
-        echo "output_path=${{ inputs.workdir }}/checkov_output.json," >> $GITHUB_OUTPUT
-
-    - name: Checkov precheck
-      id: checkov-precheck
-      if: ${{ steps.parse-steps.outputs.run_checkov == 'true' }}
-      shell: bash
-      working-directory: ${{ inputs.workdir }}
-      run: |
-        if ! find . \( -name "*.tf" -o -name "*.tf.json" -o -name "*.tfvars" -o -name "*.tfvars.json" \) -print -quit | grep -q .; then
-          echo "skip_checkov=true" >> $GITHUB_OUTPUT
-        else
-          echo "skip_checkov=false" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Run Checkov
-      id: checkov-run
-      if: ${{ steps.parse-steps.outputs.run_checkov == 'true' && steps.checkov-precheck.outputs.skip_checkov != 'true' }}
-      continue-on-error: true
-      uses: bridgecrewio/checkov-action@v12
+    - name: Setup Python
+      if: ${{ steps.preflight.outputs.run_checkov == 'true' }}
+      uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
       with:
-        directory: ${{ inputs.workdir }}
-        output_format: json
-        output_file_path: ${{ steps.checkov-config.outputs.output_path }}
-        config_file: ${{ steps.checkov-config.outputs.config_path }}
-        skip_check: ${{ steps.parse-checkov-skip-checks.outputs.checkov_skip_checks }}
+        python-version: '3.12'
 
-    - name: Checkov Summary
-      id: checkov
-      if: ${{ steps.parse-steps.outputs.run_checkov == 'true' }}
-      shell: bash
-      working-directory: ${{ inputs.workdir }}
-      env:
-        ENV_SUFFIX: ${{ inputs.env != '' && format(' ({0})', inputs.env) || '' }}
-      run: |
-        SUMMARY_MODE="${{ inputs['summary-mode'] }}"
-
-        if [ -z "$SUMMARY_MODE" ]; then
-          SUMMARY_MODE="full"
-        fi
-
-        case "$SUMMARY_MODE" in
-          full|redacted|off)
-            ;;
-          *)
-            echo "Error: summary-mode must be full, redacted, or off"
-            exit 1
-            ;;
-        esac
-
-        if [ "${{ steps.checkov-precheck.outputs.skip_checkov }}" = "true" ]; then
-          echo "::warning::No Terraform/OpenTofu files found to scan with Checkov in '${{ inputs.workdir }}'."
-          echo "checkov_ran=false" >> $GITHUB_OUTPUT
-          echo "checkov_skipped=true" >> $GITHUB_OUTPUT
-          echo "checkov_failed=false" >> $GITHUB_OUTPUT
-          echo "checkov_status=skipped" >> $GITHUB_OUTPUT
-          echo "checkov_issue_count=0" >> $GITHUB_OUTPUT
-          echo "checkov_details=No Terraform/OpenTofu files found to scan." >> $GITHUB_OUTPUT
-          exit 0
-        fi
-
-        CHECKOV_OUTCOME="${{ steps.checkov-run.outcome }}"
-        CHECKOV_OUTPUT_FILE="checkov_output.json"
-        if [ ! -f "$CHECKOV_OUTPUT_FILE" ] && [ -f "${CHECKOV_OUTPUT_FILE}," ]; then
-          CHECKOV_OUTPUT_FILE="${CHECKOV_OUTPUT_FILE},"
-        fi
-        CHECKOV_OUTPUT_NAME=$(basename "$CHECKOV_OUTPUT_FILE")
-        CHECKOV_ISSUE_COUNT=0
-        if [ -f "$CHECKOV_OUTPUT_FILE" ]; then
-          CHECKOV_ISSUE_COUNT=$(jq -r '
-            if .summary and (.summary.failed // .summary.failed_checks // .summary.failed_count) then
-              (.summary.failed // .summary.failed_checks // .summary.failed_count)
-            elif .results and .results.failed_checks then
-              (.results.failed_checks | length)
-            elif .failed_checks then
-              (.failed_checks | length)
-            else
-              0
-            end
-          ' "$CHECKOV_OUTPUT_FILE" 2>/dev/null || echo 0)
-        fi
-
-        if [ -z "$CHECKOV_ISSUE_COUNT" ]; then
-          CHECKOV_ISSUE_COUNT=0
-        fi
-
-        if [ "$CHECKOV_OUTCOME" = "success" ]; then
-          CHECKOV_STATUS="pass"
-          CHECKOV_DETAILS="${CHECKOV_ISSUE_COUNT} issue(s) found."
-          echo "checkov_failed=false" >> $GITHUB_OUTPUT
-        else
-          CHECKOV_STATUS="fail"
-          if [ "$CHECKOV_ISSUE_COUNT" -gt 0 ]; then
-            CHECKOV_DETAILS="${CHECKOV_ISSUE_COUNT} issue(s) found."
-          else
-            CHECKOV_DETAILS="Checkov scan failed before reporting results."
-          fi
-          echo "checkov_failed=true" >> $GITHUB_OUTPUT
-        fi
-
-        echo "checkov_ran=true" >> $GITHUB_OUTPUT
-        echo "checkov_skipped=false" >> $GITHUB_OUTPUT
-        echo "checkov_status=$CHECKOV_STATUS" >> $GITHUB_OUTPUT
-        echo "checkov_issue_count=$CHECKOV_ISSUE_COUNT" >> $GITHUB_OUTPUT
-        printf 'checkov_details=%s\n' "$CHECKOV_DETAILS" >> "$GITHUB_OUTPUT"
-
-        if [ "$CHECKOV_STATUS" = "pass" ]; then
-          CHECKOV_SUMMARY_STATUS="✅ Pass"
-        else
-          CHECKOV_SUMMARY_STATUS="❌ Fail"
-        fi
-
-        CHECKOV_OUTPUT=""
-        if [ "$CHECKOV_ISSUE_COUNT" -gt 0 ]; then
-          CHECKOV_ISSUES=$(jq -r '
-            def sev_prefix:
-              (.severity // "") as $s |
-              if ($s | tostring | length) == 0 or $s == "UNKNOWN" then "" else "[" + $s + "] " end;
-            if .results and .results.failed_checks then
-              .results.failed_checks[]? |
-              "- " + sev_prefix + (.check_id // "UNKNOWN") + ": " + (.check_name // "Issue") +
-              (if .file_path then " (" + .file_path + (if .resource then ", " + .resource else "" end) + ")" else "" end)
-            elif .failed_checks then
-              .failed_checks[]? |
-              "- " + sev_prefix + (.check_id // "UNKNOWN") + ": " + (.check_name // "Issue")
-            else
-              empty
-            end
-          ' "$CHECKOV_OUTPUT_FILE" 2>/dev/null || true)
-          if [ -z "$CHECKOV_ISSUES" ]; then
-            CHECKOV_ISSUES="Checkov findings available in ${CHECKOV_OUTPUT_NAME}."
-          fi
-          CHECKOV_OUTPUT=$(printf '%s\n' \
-            "### ⚠️ Checkov Issues" \
-            "Checkov reported ${CHECKOV_ISSUE_COUNT} issue(s)." \
-            "" \
-            '```' \
-            "$CHECKOV_ISSUES" \
-            '```' \
-          )
-        fi
-
-        if [ "$SUMMARY_MODE" = "full" ]; then
-          {
-            printf '%s\n' "## 🔐 Tofu Checkov${ENV_SUFFIX}" "" \
-              "| Check | Status | Details |" \
-              "|-------|--------|---------|" \
-              "| 🔐 Checkov | $CHECKOV_SUMMARY_STATUS | $CHECKOV_DETAILS |" \
-              "" \
-              "$CHECKOV_OUTPUT" \
-              ""
-          } >> "$GITHUB_STEP_SUMMARY"
-        elif [ "$SUMMARY_MODE" = "redacted" ]; then
-          {
-            printf '%s\n' "## 🔐 Tofu Checkov${ENV_SUFFIX}" "" \
-              "| Check | Status | Details |" \
-              "|-------|--------|---------|" \
-              "| 🔐 Checkov | $CHECKOV_SUMMARY_STATUS | $CHECKOV_DETAILS |" \
-              ""
-          } >> "$GITHUB_STEP_SUMMARY"
-        fi
-
-    - name: Test
-      id: test
-      if: ${{ steps.parse-steps.outputs.run_test == 'true' }}
-      shell: bash
-      working-directory: ${{ inputs.workdir }}
-      env:
-        ENV_SUFFIX: ${{ inputs.env != '' && format(' ({0})', inputs.env) || '' }}
-      run: |
-        SUMMARY_MODE="${{ inputs['summary-mode'] }}"
-
-        if [ -z "$SUMMARY_MODE" ]; then
-          SUMMARY_MODE="full"
-        fi
-
-        case "$SUMMARY_MODE" in
-          full|redacted|off)
-            ;;
-          *)
-            echo "Error: summary-mode must be full, redacted, or off"
-            exit 1
-            ;;
-        esac
-
-        TEST_DIR="${{ inputs['test-dir'] }}"
-        TEST_DIR_LABEL=$(basename "$TEST_DIR")
-        TEST_DIR_LABEL=${TEST_DIR_LABEL//_/ }
-        TEST_DIR_LABEL=${TEST_DIR_LABEL//-/ }
-        TEST_DIR_LABEL=$(echo "$TEST_DIR_LABEL" | awk '{for (i=1; i<=NF; i++) { $i = toupper(substr($i,1,1)) substr($i,2) } print }')
-        if [ -z "$TEST_DIR_LABEL" ]; then
-          TEST_DIR_LABEL="Tests"
-        fi
-        TEST_TFVAR_FILE_ARGS="${{ steps.parse-test-tfvar-files.outputs.test-tfvar-file-args }}"
-        TEST_TFVAR_ARGS="${{ steps.parse-test-tfvars.outputs.test-tfvar-args }}"
-
-        if [ -z "$TEST_DIR" ]; then
-          echo "::warning::No test directory configured; no OpenTofu tests were executed."
-          echo "test_ran=false" >> $GITHUB_OUTPUT
-          echo "test_skipped=true" >> $GITHUB_OUTPUT
-          echo "test_failed=false" >> $GITHUB_OUTPUT
-          echo "test_status=skipped" >> $GITHUB_OUTPUT
-          exit 0
-        fi
-
-        if [ ! -d "$TEST_DIR" ]; then
-          echo "::warning::Test directory '$TEST_DIR' not found; no OpenTofu tests were executed."
-          echo "test_ran=false" >> $GITHUB_OUTPUT
-          echo "test_skipped=true" >> $GITHUB_OUTPUT
-          echo "test_failed=false" >> $GITHUB_OUTPUT
-          echo "test_status=skipped" >> $GITHUB_OUTPUT
-          exit 0
-        fi
-
-        if ! find "$TEST_DIR" -name "*.tftest.hcl" -print -quit | grep -q .; then
-          echo "::warning::No OpenTofu test files found in '$TEST_DIR'; no tests were executed."
-          echo "test_ran=false" >> $GITHUB_OUTPUT
-          echo "test_skipped=true" >> $GITHUB_OUTPUT
-          echo "test_failed=false" >> $GITHUB_OUTPUT
-          echo "test_status=skipped" >> $GITHUB_OUTPUT
-          exit 0
-        fi
-
-        set +e
-        tofu test -test-directory="$TEST_DIR" $TEST_TFVAR_FILE_ARGS $TEST_TFVAR_ARGS
-        TEST_EXIT=$?
-        set -e
-
-        if [ "$TEST_EXIT" -eq 0 ]; then
-          TEST_STATUS="pass"
-          TEST_DETAILS="All OpenTofu tests passed in \`$TEST_DIR\`."
-          echo "test_failed=false" >> $GITHUB_OUTPUT
-        else
-          TEST_STATUS="fail"
-          TEST_DETAILS="OpenTofu tests failed in \`$TEST_DIR\`."
-          echo "test_failed=true" >> $GITHUB_OUTPUT
-        fi
-
-        echo "test_ran=true" >> $GITHUB_OUTPUT
-        echo "test_skipped=false" >> $GITHUB_OUTPUT
-        echo "test_status=$TEST_STATUS" >> $GITHUB_OUTPUT
-
-        if [ "$TEST_STATUS" = "pass" ]; then
-          TEST_SUMMARY_STATUS="✅ Pass"
-        else
-          TEST_SUMMARY_STATUS="❌ Fail"
-        fi
-
-        if [ "$SUMMARY_MODE" = "full" ]; then
-          {
-            printf '%s\n' "## 🧪 Tofu Test${ENV_SUFFIX}" "" \
-              "| Check | Status | Details |" \
-              "|-------|--------|---------|" \
-              "| 🧪 $TEST_DIR_LABEL | $TEST_SUMMARY_STATUS | $TEST_DETAILS |" \
-              ""
-          } >> "$GITHUB_STEP_SUMMARY"
-        elif [ "$SUMMARY_MODE" = "redacted" ]; then
-          {
-            printf '%s\n' "## 🧪 Tofu Test${ENV_SUFFIX}" "" \
-              "| Check | Status | Details |" \
-              "|-------|--------|---------|" \
-              "| 🧪 $TEST_DIR_LABEL | $TEST_SUMMARY_STATUS | Details redacted |" \
-              ""
-          } >> "$GITHUB_STEP_SUMMARY"
-        fi
-
-    - name: Checks Comment
-      if: ${{ always() && github.event_name == 'pull_request' && inputs['comment-mode'] != 'off' && inputs['comment-mode'] != 'false' && (steps.parse-steps.outputs.run_validate == 'true' || steps.parse-steps.outputs.run_lint == 'true' || steps.parse-steps.outputs.run_trivy == 'true' || steps.parse-steps.outputs.run_checkov == 'true' || steps.parse-steps.outputs.run_test == 'true') }}
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const { data: comments } = await github.rest.issues.listComments({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-          })
-          const commentIdentifier = `${{ inputs['comment-identifier'] }}` || 'tf-github-action';
-          const envLabelRaw = `${{ inputs.env }}`;
-          const envLabel = envLabelRaw ? envLabelRaw.trim() : '';
-          const envTag = envLabel
-            ? envLabel.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '')
-            : '';
-          const markerSuffix = envTag ? `:${envTag}` : '';
-          const commentMarker = `<!-- ${commentIdentifier}:checks${markerSuffix} -->`;
-          const checksHeader = `### 🧪 Tofu Checks${envLabel ? ` (${envLabel})` : ''}`;
-          const checksComments = comments.filter(comment => comment.body && comment.body.includes(commentMarker));
-
-          const rows = {};
-          const parseRows = (body) => {
-            const parsed = {};
-            if (!body) {
-              return parsed;
-            }
-            const lines = body.split('\n');
-            for (const line of lines) {
-              if (!line.trim().startsWith('|')) {
-                continue;
-              }
-              const cells = line.split('|').map(cell => cell.trim()).filter(Boolean);
-              if (cells.length < 3) {
-                continue;
-              }
-              const [check, rowStatus, rowDetails] = cells;
-              if (check === 'Check' || check === '-------') {
-                continue;
-              }
-              parsed[check] = { status: rowStatus, details: rowDetails };
-            }
-            return parsed;
-          };
-
-          const orderedExisting = checksComments
-            .map(comment => ({
-              comment,
-              updatedAt: new Date(comment.updated_at || comment.created_at || 0).getTime(),
-            }))
-            .sort((a, b) => a.updatedAt - b.updatedAt);
-
-          for (const { comment } of orderedExisting) {
-            const parsedRows = parseRows(comment.body);
-            for (const [check, row] of Object.entries(parsedRows)) {
-              rows[check] = row;
-            }
-          }
-
-          const runValidate = '${{ steps.parse-steps.outputs.run_validate }}' === 'true';
-          const runLint = '${{ steps.parse-steps.outputs.run_lint }}' === 'true';
-          const runTrivy = '${{ steps.parse-steps.outputs.run_trivy }}' === 'true';
-          const runCheckov = '${{ steps.parse-steps.outputs.run_checkov }}' === 'true';
-          const runTest = '${{ steps.parse-steps.outputs.run_test }}' === 'true';
-
-          if (runValidate) {
-            const fmtFailedOutput = `${{ steps.validate.outputs.fmt_failed }}`;
-            const validateFailedOutput = `${{ steps.validate.outputs.validate_failed }}`;
-            const fmtSummary = `${{ steps.validate.outputs.fmt_summary }}`;
-            const validateSummary = `${{ steps.validate.outputs.validate_summary }}`;
-            const validateOutcome = `${{ steps.validate.outcome }}`;
-            const validateOutputsPresent = fmtFailedOutput !== '' || validateFailedOutput !== '';
-
-            if (!validateOutputsPresent && validateOutcome && validateOutcome !== 'success') {
-              rows['🎯 Tofu Format'] = {
-                status: '❌ Fail',
-                details: 'Validate step failed before reporting status.',
-              };
-              rows['🔍 Tofu Validate'] = {
-                status: '❌ Fail',
-                details: 'Validate step failed before reporting status.',
-              };
-            } else {
-              const fmtFailed = fmtFailedOutput === 'true';
-              const validateFailed = validateFailedOutput === 'true';
-
-              rows['🎯 Tofu Format'] = {
-                status: fmtFailed ? '❌ Fail' : '✅ Pass',
-                details: fmtFailed ? `\`${fmtSummary}\`` : 'All files are properly formatted',
-              };
-              rows['🔍 Tofu Validate'] = {
-                status: validateFailed ? '❌ Fail' : '✅ Pass',
-                details: validateFailed ? validateSummary : 'Configuration is valid',
-              };
-            }
-          }
-
-          if (runLint) {
-            const lintRanOutput = `${{ steps.lint.outputs.lint_ran }}`;
-            const lintSkippedOutput = `${{ steps.lint.outputs.lint_skipped }}`;
-            const lintFailedOutput = `${{ steps.lint.outputs.lint_failed }}`;
-            const lintStatusOutput = `${{ steps.lint.outputs.lint_status }}`;
-            const lintIssueCount = Number(`${{ steps.lint.outputs.lint_issue_count }}` || 0);
-            const lintDetails = `${{ steps.lint.outputs.lint_details }}`;
-            const lintOutcome = `${{ steps.lint.outcome }}`;
-            const lintOutputsPresent = lintStatusOutput !== '';
-
-            let status = '⚠️ Skipped';
-            let details = 'No Terraform/OpenTofu files to lint.';
-
-            if (!lintOutputsPresent && lintOutcome && lintOutcome !== 'success') {
-              status = '❌ Fail';
-              details = 'Lint step failed before reporting status.';
-            } else {
-              const lintRan = lintRanOutput === 'true';
-              const lintSkipped = lintSkippedOutput === 'true';
-              const lintFailed = lintFailedOutput === 'true';
-
-              if (lintRan) {
-                status = lintFailed ? '❌ Fail' : '✅ Pass';
-                if (lintFailed && lintIssueCount === 0 && lintDetails) {
-                  details = lintDetails;
-                } else {
-                  details = `${lintIssueCount} issue(s) found.`;
-                }
-              } else if (lintSkipped) {
-                details = lintDetails || 'No Terraform/OpenTofu files to lint.';
-              }
-            }
-
-            rows['🧹 TFLint'] = { status, details };
-          }
-
-          if (runTrivy) {
-            const trivyRanOutput = `${{ steps.trivy.outputs.trivy_ran }}`;
-            const trivySkippedOutput = `${{ steps.trivy.outputs.trivy_skipped }}`;
-            const trivyFailedOutput = `${{ steps.trivy.outputs.trivy_failed }}`;
-            const trivyStatusOutput = `${{ steps.trivy.outputs.trivy_status }}`;
-            const trivyIssueCount = Number(`${{ steps.trivy.outputs.trivy_issue_count }}` || 0);
-            const trivyDetails = `${{ steps.trivy.outputs.trivy_details }}`;
-            const trivyOutcome = `${{ steps.trivy.outcome }}`;
-            const trivyOutputsPresent = trivyStatusOutput !== '';
-
-            let status = '⚠️ Skipped';
-            let details = 'No Terraform/OpenTofu files to scan.';
-
-            if (!trivyOutputsPresent && trivyOutcome && trivyOutcome !== 'success') {
-              status = '❌ Fail';
-              details = 'Trivy scan failed before reporting status.';
-            } else {
-              const trivyRan = trivyRanOutput === 'true';
-              const trivySkipped = trivySkippedOutput === 'true';
-              const trivyFailed = trivyFailedOutput === 'true';
-
-              if (trivyRan) {
-                status = trivyFailed ? '❌ Fail' : '✅ Pass';
-                if (trivyFailed && trivyIssueCount === 0 && trivyDetails) {
-                  details = trivyDetails;
-                } else {
-                  details = `${trivyIssueCount} issue(s) found.`;
-                }
-              } else if (trivySkipped) {
-                details = trivyDetails || 'No Terraform/OpenTofu files to scan.';
-              }
-            }
-
-            rows['🛡️ Trivy'] = { status, details };
-          }
-
-          if (runCheckov) {
-            const checkovRanOutput = `${{ steps.checkov.outputs.checkov_ran }}`;
-            const checkovSkippedOutput = `${{ steps.checkov.outputs.checkov_skipped }}`;
-            const checkovFailedOutput = `${{ steps.checkov.outputs.checkov_failed }}`;
-            const checkovStatusOutput = `${{ steps.checkov.outputs.checkov_status }}`;
-            const checkovIssueCount = Number(`${{ steps.checkov.outputs.checkov_issue_count }}` || 0);
-            const checkovDetails = `${{ steps.checkov.outputs.checkov_details }}`;
-            const checkovOutcome = `${{ steps.checkov.outcome }}`;
-            const checkovOutputsPresent = checkovStatusOutput !== '';
-
-            let status = '⚠️ Skipped';
-            let details = 'No Terraform/OpenTofu files to scan.';
-
-            if (!checkovOutputsPresent && checkovOutcome && checkovOutcome !== 'success') {
-              status = '❌ Fail';
-              details = 'Checkov scan failed before reporting status.';
-            } else {
-              const checkovRan = checkovRanOutput === 'true';
-              const checkovSkipped = checkovSkippedOutput === 'true';
-              const checkovFailed = checkovFailedOutput === 'true';
-
-              if (checkovRan) {
-                status = checkovFailed ? '❌ Fail' : '✅ Pass';
-                if (checkovFailed && checkovIssueCount === 0 && checkovDetails) {
-                  details = checkovDetails;
-                } else {
-                  details = `${checkovIssueCount} issue(s) found.`;
-                }
-              } else if (checkovSkipped) {
-                details = checkovDetails || 'No Terraform/OpenTofu files to scan.';
-              }
-            }
-
-            rows['🔐 Checkov'] = { status, details };
-          }
-
-          if (runTest) {
-            const testDir = `${{ inputs['test-dir'] }}` || 'tests';
-            const dirLabel = (testDir.split('/').filter(Boolean).pop() || 'Tests')
-              .replace(/[-_]/g, ' ')
-              .replace(/\b\w/g, c => c.toUpperCase());
-            const checkName = `🧪 Tofu Test (${dirLabel})`;
-
-            const testRanOutput = `${{ steps.test.outputs.test_ran }}`;
-            const testSkippedOutput = `${{ steps.test.outputs.test_skipped }}`;
-            const testFailedOutput = `${{ steps.test.outputs.test_failed }}`;
-            const testStatusOutput = `${{ steps.test.outputs.test_status }}`;
-            const testOutcome = `${{ steps.test.outcome }}`;
-            const testOutputsPresent = testStatusOutput !== '';
-
-            let status = '⚠️ Skipped';
-            let details = `No OpenTofu tests were executed in \`${testDir}\`.`;
-
-            if (!testOutputsPresent && testOutcome && testOutcome !== 'success') {
-              status = '❌ Fail';
-              details = `Test step failed before reporting status for \`${testDir}\`.`;
-            } else {
-              const testRan = testRanOutput === 'true';
-              const testSkipped = testSkippedOutput === 'true';
-              const testFailed = testFailedOutput === 'true';
-
-              if (testRan) {
-                status = testFailed ? '❌ Fail' : '✅ Pass';
-                details = testFailed ? `OpenTofu tests failed in \`${testDir}\`.` : `All OpenTofu tests passed in \`${testDir}\`.`;
-              } else if (testSkipped) {
-                details = `No OpenTofu tests were executed in \`${testDir}\`.`;
-              }
-            }
-
-            rows[checkName] = { status, details };
-          }
-
-          const preferredOrder = [
-            '🎯 Tofu Format',
-            '🔍 Tofu Validate',
-            '🧹 TFLint',
-            '🛡️ Trivy',
-            '🔐 Checkov',
-            '🧪 Tofu Test (Unit)',
-            '🧪 Tofu Test (Integration)',
-          ];
-
-          const orderedChecks = [
-            ...preferredOrder.filter(name => rows[name]),
-            ...Object.keys(rows).filter(name => !preferredOrder.includes(name)).sort(),
-          ];
-
-          const tableLines = [
-            '| Check | Status | Details |',
-            '|-------|--------|---------|',
-            ...orderedChecks.map(name => {
-              const row = rows[name];
-              return `| ${name} | ${row.status} | ${row.details} |`;
-            }),
-          ];
-
-          let checksSummary = `${commentMarker}
-          ${checksHeader}
-          ${tableLines.join('\n')}`;
-
-          const anyFail = Object.values(rows).some(row => row.status.includes('❌'));
-          const anySkip = Object.values(rows).some(row => row.status.includes('⚠️'));
-          if (!anyFail && !anySkip && Object.keys(rows).length > 0) {
-            checksSummary += `\n\nAll checks **passed!** 🎉`;
-          } else if (anyFail) {
-            checksSummary += `\n\nFailure details can be found in the [Workflow Summary](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
-          }
-
-          let primaryComment = null;
-          if (orderedExisting.length > 0) {
-            primaryComment = orderedExisting[orderedExisting.length - 1].comment;
-          }
-
-          if (primaryComment) {
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: primaryComment.id,
-              body: checksSummary
-            })
-          } else {
-            const created = await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: checksSummary
-            })
-            primaryComment = created.data;
-          }
-
-          const deletable = checksComments.filter(comment => {
-            if (!primaryComment || comment.id === primaryComment.id) {
-              return false;
-            }
-            const isBot = comment.user && comment.user.type === 'Bot';
-            return isBot || (comment.body && comment.body.includes(commentMarker));
-          });
-          for (const comment of deletable) {
-            await github.rest.issues.deleteComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: comment.id,
-            })
-          }
-
-    - name: Check for check failures
-      if: ${{ always() && (steps.parse-steps.outputs.run_validate == 'true' || steps.parse-steps.outputs.run_lint == 'true' || steps.parse-steps.outputs.run_trivy == 'true' || steps.parse-steps.outputs.run_checkov == 'true' || steps.parse-steps.outputs.run_test == 'true') }}
+    - name: Install Checkov
+      if: ${{ steps.preflight.outputs.run_checkov == 'true' }}
       shell: bash
       run: |
-        FAILURES=0
-
-        if [[ "${{ steps.parse-steps.outputs.run_validate }}" == "true" ]]; then
-          if [[ "${{ steps.validate.outcome }}" != "success" ]]; then
-            echo "::error::Validate step failed before reporting status"
-            FAILURES=$((FAILURES + 1))
-          fi
-          if [[ "${{ steps.validate.outputs.fmt_failed }}" == "true" ]]; then
-            echo "::error::Format validation failed"
-            FAILURES=$((FAILURES + 1))
-          fi
-          if [[ "${{ steps.validate.outputs.validate_failed }}" == "true" ]]; then
-            echo "::error::Validation checks failed"
-            FAILURES=$((FAILURES + 1))
-          fi
-        fi
-
-        if [[ "${{ steps.parse-steps.outputs.run_lint }}" == "true" ]]; then
-          if [[ "${{ steps.lint.outcome }}" != "success" ]]; then
-            echo "::error::Lint step failed before reporting status"
-            FAILURES=$((FAILURES + 1))
-          fi
-          if [[ "${{ steps.lint.outputs.lint_failed }}" == "true" ]]; then
-            echo "::error::TFLint checks failed"
-            FAILURES=$((FAILURES + 1))
-          fi
-        fi
-
-        if [[ "${{ steps.parse-steps.outputs.run_trivy }}" == "true" ]]; then
-          if [[ "${{ steps.trivy.outcome }}" != "success" ]]; then
-            echo "::error::Trivy step failed before reporting status"
-            FAILURES=$((FAILURES + 1))
-          fi
-          if [[ "${{ steps.trivy.outputs.trivy_failed }}" == "true" ]]; then
-            echo "::error::Trivy checks failed"
-            FAILURES=$((FAILURES + 1))
-          fi
-        fi
-
-        if [[ "${{ steps.parse-steps.outputs.run_checkov }}" == "true" ]]; then
-          if [[ "${{ steps.checkov.outcome }}" != "success" ]]; then
-            echo "::error::Checkov step failed before reporting status"
-            FAILURES=$((FAILURES + 1))
-          fi
-          if [[ "${{ steps.checkov.outputs.checkov_failed }}" == "true" ]]; then
-            echo "::error::Checkov checks failed"
-            FAILURES=$((FAILURES + 1))
-          fi
-        fi
-
-        if [[ "${{ steps.parse-steps.outputs.run_test }}" == "true" ]]; then
-          if [[ "${{ steps.test.outcome }}" != "success" ]]; then
-            echo "::error::Test step failed before reporting status"
-            FAILURES=$((FAILURES + 1))
-          fi
-          if [[ "${{ steps.test.outputs.test_failed }}" == "true" ]]; then
-            echo "::error::OpenTofu tests failed"
-            FAILURES=$((FAILURES + 1))
-          fi
-        fi
-
-        if [[ $FAILURES -gt 0 ]]; then
+        if [ "$INPUT_CHECKOV_VERSION" != "3.2.497" ]; then
+          echo "Custom checkov-version values are not supported until a matching hash-locked requirements file is added."
           exit 1
-        else
-          echo "::notice::All checks passed"
         fi
-
-    - name: Plan
-      id: plan
-      if: ${{ steps.parse-steps.outputs.run_plan == 'true' }}
-      working-directory: ${{ inputs.workdir }}
+        python -m venv "$RUNNER_TEMP/tofu-checkov-venv"
+        "$RUNNER_TEMP/tofu-checkov-venv/bin/python" -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r "$GITHUB_ACTION_PATH/security/checkov/requirements-py312-linux-x86_64.txt"
+        echo "$RUNNER_TEMP/tofu-checkov-venv/bin" >> "$GITHUB_PATH"
       env:
-        PLAN_NAME: ${{ inputs.env != '' && format('{0}-plan', inputs.env) || 'plan' }}
-        ENV_SUFFIX: ${{ inputs.env != '' && format(' ({0})', inputs.env) || '' }}
-      shell: bash
-      run: |
-        PLAN_ARGS="${{ steps.parse-cli-args.outputs.plan_args }}"
-        SUMMARY_MODE="${{ inputs['summary-mode'] }}"
+        INPUT_CHECKOV_VERSION: ${{ inputs['checkov-version'] }}
 
-        if [ -z "$SUMMARY_MODE" ]; then
-          SUMMARY_MODE="full"
-        fi
-
-        case "$SUMMARY_MODE" in
-          full|redacted|off)
-            ;;
-          *)
-            echo "Error: summary-mode must be full, redacted, or off"
-            exit 1
-            ;;
-        esac
-        PLAN_TITLE="## 🏗️ Tofu Plan${ENV_SUFFIX}"
-
-        tofu plan ${{ steps.parse-tfvar-files.outputs.tfvar-file-args }} ${{ steps.parse-tfvars.outputs.tfvar-args }} $PLAN_ARGS -input=false -out $PLAN_NAME.tfplan
-
-        PLAN=""
-        if [ "$SUMMARY_MODE" = "full" ]; then
-          PLAN=$(tofu show -no-color $PLAN_NAME.tfplan)
-        fi
-        PLAN_JSON=$(tofu show -json $PLAN_NAME.tfplan)
-        gzip -9 $PLAN_NAME.tfplan
-
-        # Extract summary info
-        CREATE_COUNT=$(echo "$PLAN_JSON" | jq '[.resource_changes[]? | select(.change.actions[]? == "create")] | length')
-        UPDATE_COUNT=$(echo "$PLAN_JSON" | jq '[.resource_changes[]? | select(.change.actions[]? == "update")] | length')
-        DESTROY_COUNT=$(echo "$PLAN_JSON" | jq '[.resource_changes[]? | select(.change.actions[]? == "delete")] | length')
-
-        # Determine if any changes are detected in the plan
-        if [ "$CREATE_COUNT" -gt 0 ] || [ "$UPDATE_COUNT" -gt 0 ] || [ "$DESTROY_COUNT" -gt 0 ]; then
-          CHANGES=true
-        else
-          CHANGES=false
-        fi
-
-        if [ "$SUMMARY_MODE" != "off" ]; then
-          cat << PLAN_EOF >> "$GITHUB_STEP_SUMMARY"
-        $PLAN_TITLE
-
-        | Action | Count |
-        |--------|-------|
-        | ➕ Create | $CREATE_COUNT |
-        | 🔄 Update | $UPDATE_COUNT |
-        | ❌ Destroy | $DESTROY_COUNT |
-
-        PLAN_EOF
-
-          if [ "$SUMMARY_MODE" = "full" ]; then
-            cat << PLAN_DETAIL_EOF >> "$GITHUB_STEP_SUMMARY"
-        \`\`\`hcl
-        $PLAN
-        \`\`\`
-        ---
-
-        PLAN_DETAIL_EOF
-          elif [ "$SUMMARY_MODE" = "redacted" ]; then
-            cat << PLAN_DETAIL_EOF >> "$GITHUB_STEP_SUMMARY"
-        PLAN_DETAIL_EOF
-          fi
-        fi
-
-        # Output has_changes boolean
-        echo "has_changes=$CHANGES" >> $GITHUB_OUTPUT
-
-        # Output counts
-        echo "create_count=$CREATE_COUNT" >> $GITHUB_OUTPUT
-        echo "update_count=$UPDATE_COUNT" >> $GITHUB_OUTPUT
-        echo "destroy_count=$DESTROY_COUNT" >> $GITHUB_OUTPUT
-
-        echo "::notice::$PLAN_NAME.tfplan created"
-
-    - name: PR Plan Comment
-      if: ${{ github.event_name == 'pull_request' && steps.parse-steps.outputs.run_plan == 'true' && inputs['comment-mode'] != 'off' && inputs['comment-mode'] != 'false' }}
-      uses: actions/github-script@v6
+    - name: Download Plan Artifact
+      if: ${{ steps.preflight.outputs.run_apply == 'true' && steps.preflight.outputs.run_plan != 'true' }}
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
-        script: |
-          const { data: comments } = await github.rest.issues.listComments({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-          })
-          const commentIdentifier = `${{ inputs['comment-identifier'] }}` || 'tf-github-action';
-          const envLabelRaw = `${{ inputs.env }}`;
-          const envLabel = envLabelRaw ? envLabelRaw.trim() : '';
-          const envTag = envLabel
-            ? envLabel.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '')
-            : '';
-          const markerSuffix = envTag ? `:${envTag}` : '';
-          const commentMarker = `<!-- ${commentIdentifier}:plan${markerSuffix} -->`;
-          let planComment = comments.find(comment => {
-            return comment.body && comment.body.includes(commentMarker)
-          });
-          if (!planComment && !envLabel) {
-            planComment = comments.find(comment => {
-              return comment.user.type === 'Bot' && comment.body.includes('Tofu Plan')
-            })
-          }
-          const hasChanges = '${{ steps.plan.outputs.has_changes }}' === 'true';
-          const summaryMode = `${{ inputs['summary-mode'] }}` || 'full';
-          const heading = `### 🏗️ Tofu Plan${envLabel ? ` (${envLabel})` : ''}`;
-          const noChangeHeading = `#### 🏗️ Tofu Plan${envLabel ? ` (${envLabel})` : ''}`;
-
-          const summaryTable = `
-          | Action | Count |
-          |--------|-------|
-          | ➕ Create | ${{ steps.plan.outputs.create_count }} |
-          | 🔄 Update | ${{ steps.plan.outputs.update_count }} |
-          | ❌ Destroy | ${{ steps.plan.outputs.destroy_count }} |
-          `;
-
-          let plan = '';
-
-          if (hasChanges) {
-            plan = `${commentMarker}
-            ${heading}
-            ${summaryTable}
-            `;
-            if (summaryMode === 'full') {
-              plan += `\nFull plan can be found in the [Plan Summary](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
-            }
-          } else {
-            plan = `${commentMarker}
-            ${noChangeHeading}
-            ${summaryTable}
-
-            \`\`\`hcl
-            No changes. Your infrastructure matches the configuration.
-            \`\`\``;
-          }
-
-          if (planComment) {
-            github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: planComment.id,
-              body: plan
-            })
-          } else {
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: plan
-            })
-          }
-
-    - name: Upload Plan
-      if: ${{ steps.parse-steps.outputs.run_plan == 'true' && inputs['skip-plan-upload'] != 'true' && steps.parse-retention.outputs.retention_days == '' }}
-      env:
-        PLAN_NAME: ${{ inputs.env != '' && format('{0}-plan', inputs.env) || 'plan' }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PLAN_NAME }}
-        path: ${{ inputs.workdir }}/${{ env.PLAN_NAME }}.tfplan.gz
-
-    - name: Upload Plan (retention)
-      if: ${{ steps.parse-steps.outputs.run_plan == 'true' && inputs['skip-plan-upload'] != 'true' && steps.parse-retention.outputs.retention_days != '' }}
-      env:
-        PLAN_NAME: ${{ inputs.env != '' && format('{0}-plan', inputs.env) || 'plan' }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PLAN_NAME }}
-        path: ${{ inputs.workdir }}/${{ env.PLAN_NAME }}.tfplan.gz
-        retention-days: ${{ steps.parse-retention.outputs.retention_days }}
-
-    - name: Download Plan
-      id: download-plan
-      if: ${{ steps.parse-steps.outputs.run_apply == 'true' && steps.parse-steps.outputs.run_plan != 'true' }}
-      continue-on-error: true
-      env:
-        PLAN_NAME: ${{ inputs.env != '' && format('{0}-plan', inputs.env) || 'plan' }}
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ env.PLAN_NAME }}
+        name: ${{ steps.preflight.outputs.plan_artifact_name }}
         path: ${{ inputs.workdir }}
 
-    - name: Ensure plan artifact exists
-      if: ${{ steps.parse-steps.outputs.run_apply == 'true' }}
-      working-directory: ${{ inputs.workdir }}
-      env:
-        PLAN_NAME: ${{ inputs.env != '' && format('{0}-plan', inputs.env) || 'plan' }}
+    - name: Run Tofu GitHub Action
+      id: run
       shell: bash
       run: |
-        if [ ! -f "$PLAN_NAME.tfplan.gz" ]; then
-          echo "::error::Plan artifact $PLAN_NAME.tfplan.gz not found. Run the plan step before apply."
-          exit 1
-        fi
-
-    - name: Apply
-      id: apply
-      if: ${{ steps.parse-steps.outputs.run_apply == 'true' }}
-      working-directory: ${{ inputs.workdir }}
+        export PATH="${RUNNER_TEMP:-/tmp}/tofu-github-action/bin:${RUNNER_TEMP:-/tmp}/tofu-checkov-venv/bin:$PATH"
+        node "$GITHUB_ACTION_PATH/dist/main/index.js"
       env:
-        PLAN_NAME: ${{ inputs.env != '' && format('{0}-plan', inputs.env) || 'plan' }}
-        ENV_SUFFIX: ${{ inputs.env != '' && format(' ({0})', inputs.env) || '' }}
-      shell: bash
-      run: |
-        APPLY_ARGS="${{ steps.parse-cli-args.outputs.apply_args }}"
-        SUMMARY_MODE="${{ inputs['summary-mode'] }}"
+        GITHUB_TOKEN: ${{ github.token }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_WORKDIR: ${{ inputs.workdir }}
+        INPUT_ENV: ${{ inputs.env }}
+        INPUT_STEPS: ${{ inputs.steps }}
+        INPUT_TFVAR_FILES: ${{ inputs['tfvar-files'] }}
+        INPUT_TFVARS: ${{ inputs.tfvars }}
+        INPUT_BACKEND_CONFIG_VAR_FILES: ${{ inputs['backend-config-var-files'] }}
+        INPUT_BACKEND_CONFIG_VARS: ${{ inputs['backend-config-vars'] }}
+        INPUT_TEST_DIR: ${{ inputs['test-dir'] }}
+        INPUT_TEST_TFVAR_FILES: ${{ inputs['test-tfvar-files'] }}
+        INPUT_TEST_TFVARS: ${{ inputs['test-tfvars'] }}
+        INPUT_TFLINT_VERSION: ${{ inputs['tflint-version'] }}
+        INPUT_TRIVY_VERSION: ${{ inputs['trivy-version'] }}
+        INPUT_CHECKOV_VERSION: ${{ inputs['checkov-version'] }}
+        INPUT_TRIVY_SCAN_TYPE: ${{ inputs['trivy-scan-type'] }}
+        INPUT_CHECKOV_SKIP_CHECKS: ${{ inputs['checkov-skip-checks'] }}
+        INPUT_LOCK_TIMEOUT: ${{ inputs['lock-timeout'] }}
+        INPUT_PARALLELISM: ${{ inputs.parallelism }}
+        INPUT_REFRESH: ${{ inputs.refresh }}
+        INPUT_TARGETS: ${{ inputs.targets }}
+        INPUT_ARTIFACT_RETENTION_DAYS: ${{ inputs['artifact-retention-days'] }}
+        INPUT_SKIP_PLAN_UPLOAD: ${{ inputs['skip-plan-upload'] }}
+        INPUT_SUMMARY_MODE: ${{ inputs['summary-mode'] }}
+        INPUT_COMMENT_MODE: ${{ inputs['comment-mode'] }}
+        INPUT_COMMENT_IDENTIFIER: ${{ inputs['comment-identifier'] }}
 
-        if [ -z "$SUMMARY_MODE" ]; then
-          SUMMARY_MODE="full"
-        fi
-
-        case "$SUMMARY_MODE" in
-          full|redacted|off)
-            ;;
-          *)
-            echo "Error: summary-mode must be full, redacted, or off"
-            exit 1
-            ;;
-        esac
-        APPLY_TITLE="## 🚀 Tofu Apply${ENV_SUFFIX}"
-
-        gunzip "$PLAN_NAME.tfplan.gz"
-        tofu apply -input=false -auto-approve -json -concise $APPLY_ARGS "$PLAN_NAME.tfplan" 2>&1 | tee apply_output.json
-
-        ADDED=0
-        CHANGED=0
-        DESTROYED=0
-        IMPORTED=0
-        FORGOTTEN=0
-
-        # Get the final change summary if present
-        APPLY_SUMMARY=$(jq -r '
-          select(.type == "change_summary") |
-          "ADDED=\(.changes.add // 0);CHANGED=\(.changes.change // 0);DESTROYED=\(.changes.remove // 0);IMPORTED=\(.changes.import // 0);FORGOTTEN=\(.changes.forget // 0)"
-        ' apply_output.json | tail -1)
-
-        if [ -n "$APPLY_SUMMARY" ]; then
-          eval "$APPLY_SUMMARY"
-        fi
-
-        RESOURCE_CHANGES="Details redacted."
-        OUTPUTS="Outputs redacted."
-
-        if [ "$SUMMARY_MODE" = "full" ]; then
-          RESOURCE_CHANGES=$(jq -r '
-            select(.hook? and .hook.resource?) |
-            .hook.action as $action |
-            .hook.resource.resource_type + "." + .hook.resource.resource_name as $resource |
-            $resource + " (" +
-            (if $action == "create" then "created"
-            elif $action == "update" then "updated"
-            elif $action == "delete" then "destroyed"
-            else $action end) + ")"
-          ' apply_output.json | awk 'NF && !seen[$0]++')
-
-          if [ -z "$RESOURCE_CHANGES" ]; then
-            RESOURCE_CHANGES="No changes"
-          fi
-
-          # Get any outputs
-          OUTPUTS=$(jq -r '
-            select(.type == "outputs") |
-            if (.outputs | length) > 0 then
-              .outputs | to_entries[] | "- **\(.key)**: " +
-              (if .value.sensitive == true then
-                "<sensitive>"
-              elif (.value.value | type) == "string" then
-                .value.value
-              else
-                (.value.value | tostring)
-              end)
-            else
-              "No outputs"
-            end
-          ' apply_output.json)
-
-          if [ -z "$OUTPUTS" ]; then
-            OUTPUTS="No outputs"
-          fi
-        fi
-
-        if [ "$SUMMARY_MODE" != "off" ]; then
-          cat << APPLY_EOF >> "$GITHUB_STEP_SUMMARY"
-        $APPLY_TITLE
-
-        ### Summary
-        **Resources:** ${ADDED} added, ${CHANGED} changed, ${DESTROYED} destroyed
-
-        $(if [ ${IMPORTED} -gt 0 ]; then echo "**Imported:** ${IMPORTED}"; fi)
-        $(if [ ${FORGOTTEN} -gt 0 ]; then echo "**Forgotten:** ${FORGOTTEN}"; fi)
-
-        ### Resource Changes
-        ${RESOURCE_CHANGES}
-
-        ### Outputs
-        ${OUTPUTS}
-        APPLY_EOF
-        fi
-
-        echo "added=${ADDED:-0}" >> $GITHUB_OUTPUT
-        echo "changed=${CHANGED:-0}" >> $GITHUB_OUTPUT
-        echo "destroyed=${DESTROYED:-0}" >> $GITHUB_OUTPUT
-        echo "imported=${IMPORTED:-0}" >> $GITHUB_OUTPUT
-        echo "forgotten=${FORGOTTEN:-0}" >> $GITHUB_OUTPUT
-
-        # Calculate has_changed (true if any destructive changes occurred)
-        if [ ${ADDED:-0} -gt 0 ] || [ ${CHANGED:-0} -gt 0 ] || [ ${DESTROYED:-0} -gt 0 ]; then
-          echo "has_changed=true" >> $GITHUB_OUTPUT
-        else
-          echo "has_changed=false" >> $GITHUB_OUTPUT
-        fi
-
-        echo "::notice::$PLAN_NAME.tfplan applied!"
-
-    - name: PR Apply Comment
-      if: ${{ github.event_name == 'pull_request' && steps.parse-steps.outputs.run_apply == 'true' && inputs['comment-mode'] != 'off' && inputs['comment-mode'] != 'false' }}
-      uses: actions/github-script@v6
+    - name: Upload Plan Artifact
+      if: ${{ steps.preflight.outputs.run_plan == 'true' && inputs['skip-plan-upload'] != 'true' && steps.run.outputs.plan_artifact_name != '' && inputs['artifact-retention-days'] == '' }}
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
       with:
-        script: |
-          const { data: comments } = await github.rest.issues.listComments({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-          })
-          const commentIdentifier = `${{ inputs['comment-identifier'] }}` || 'tf-github-action';
-          const envLabelRaw = `${{ inputs.env }}`;
-          const envLabel = envLabelRaw ? envLabelRaw.trim() : '';
-          const envTag = envLabel
-            ? envLabel.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '')
-            : '';
-          const markerSuffix = envTag ? `:${envTag}` : '';
-          const commentMarker = `<!-- ${commentIdentifier}:apply${markerSuffix} -->`;
-          let applyComment = comments.find(comment => {
-            return comment.body && comment.body.includes(commentMarker)
-          });
-          if (!applyComment && !envLabel) {
-            applyComment = comments.find(comment => {
-              return comment.user.type === 'Bot' && comment.body.includes('Tofu Apply')
-            })
-          }
-          const summaryMode = `${{ inputs['summary-mode'] }}` || 'full';
+        name: ${{ steps.run.outputs.plan_artifact_name }}
+        path: ${{ inputs.workdir }}/${{ steps.run.outputs.plan_artifact_name }}*
+        if-no-files-found: error
 
-          const added = Number('${{ steps.apply.outputs.added }}' || 0);
-          const changed = Number('${{ steps.apply.outputs.changed }}' || 0);
-          const destroyed = Number('${{ steps.apply.outputs.destroyed }}' || 0);
-          const imported = Number('${{ steps.apply.outputs.imported }}' || 0);
-          const forgotten = Number('${{ steps.apply.outputs.forgotten }}' || 0);
-
-          const heading = `### 🚀 Tofu Apply${envLabel ? ` (${envLabel})` : ''}`;
-          let applySummary = `${commentMarker}
-          ${heading}
-          **Resources:** ${added} added, ${changed} changed, ${destroyed} destroyed
-          ${imported > 0 ? `**Imported:** ${imported}` : ''}
-          ${forgotten > 0 ? `**Forgotten:** ${forgotten}` : ''}
-          `;
-          if (summaryMode === 'full') {
-            applySummary += `\nFull apply output can be found in the [Apply Summary](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
-          }
-
-          if (applyComment) {
-            github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: applyComment.id,
-              body: applySummary
-            })
-          } else {
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: applySummary
-            })
-          }
+    - name: Upload Plan Artifact With Retention
+      if: ${{ steps.preflight.outputs.run_plan == 'true' && inputs['skip-plan-upload'] != 'true' && steps.run.outputs.plan_artifact_name != '' && inputs['artifact-retention-days'] != '' }}
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: ${{ steps.run.outputs.plan_artifact_name }}
+        path: ${{ inputs.workdir }}/${{ steps.run.outputs.plan_artifact_name }}*
+        if-no-files-found: error
+        retention-days: ${{ inputs['artifact-retention-days'] }}
