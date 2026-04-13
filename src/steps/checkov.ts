@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ParsedConfig, StepResult } from '../types.js';
 import { execFileSafe } from '../exec/process.js';
@@ -66,13 +66,31 @@ function formatDetails(payload: CheckovJson): string {
     .join('\n');
 }
 
-function loadCheckovJson(outputPath: string): CheckovJson | null {
+export function resolveCheckovJsonPath(outputPath: string): string | null {
   if (!existsSync(outputPath)) {
     return null;
   }
 
   try {
-    return JSON.parse(readFileSync(outputPath, 'utf8')) as CheckovJson;
+    if (statSync(outputPath).isDirectory()) {
+      const nestedPath = join(outputPath, 'results_json.json');
+      return existsSync(nestedPath) ? nestedPath : null;
+    }
+  } catch {
+    return null;
+  }
+
+  return outputPath;
+}
+
+export function loadCheckovJson(outputPath: string): CheckovJson | null {
+  const jsonPath = resolveCheckovJsonPath(outputPath);
+  if (!jsonPath) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(readFileSync(jsonPath, 'utf8')) as CheckovJson;
   } catch {
     return null;
   }
@@ -112,8 +130,8 @@ export async function runCheckovStep(config: ParsedConfig): Promise<StepResult> 
   }
 
   const configPath = resolveScannerConfig(cwd, workspace, actionPath, '.checkov.yaml');
-  const outputPath = join(cwd, 'checkov_output.json');
-  const args = ['-d', '.', '--output', 'json', '--output-file-path', outputPath];
+  const outputPath = join(cwd, 'checkov_output');
+  const args = ['-d', '.', '--output', 'json', '--output-file-path', outputPath, '--skip-download'];
 
   if (configPath) {
     args.push('--config-file', configPath);
@@ -126,7 +144,7 @@ export async function runCheckovStep(config: ParsedConfig): Promise<StepResult> 
   const result = await execFileSafe('checkov', args, { cwd, allowFailure: true });
   const payload = loadCheckovJson(outputPath);
   if (!payload) {
-    const details = result.stderr.trim() || result.stdout.trim() || 'Checkov scan failed before producing checkov_output.json.';
+    const details = result.stderr.trim() || result.stdout.trim() || 'Checkov scan failed before producing Checkov JSON output.';
     return createStepResult(
       'checkov',
       'fail',

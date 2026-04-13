@@ -1132,6 +1132,8 @@ async function runApplyStep(config) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.resolveCheckovJsonPath = resolveCheckovJsonPath;
+exports.loadCheckovJson = loadCheckovJson;
 exports.runCheckovStep = runCheckovStep;
 const node_fs_1 = __nccwpck_require__(3024);
 const node_path_1 = __nccwpck_require__(6760);
@@ -1172,12 +1174,28 @@ function formatDetails(payload) {
     })
         .join('\n');
 }
-function loadCheckovJson(outputPath) {
+function resolveCheckovJsonPath(outputPath) {
     if (!(0, node_fs_1.existsSync)(outputPath)) {
         return null;
     }
     try {
-        return JSON.parse((0, node_fs_1.readFileSync)(outputPath, 'utf8'));
+        if ((0, node_fs_1.statSync)(outputPath).isDirectory()) {
+            const nestedPath = (0, node_path_1.join)(outputPath, 'results_json.json');
+            return (0, node_fs_1.existsSync)(nestedPath) ? nestedPath : null;
+        }
+    }
+    catch {
+        return null;
+    }
+    return outputPath;
+}
+function loadCheckovJson(outputPath) {
+    const jsonPath = resolveCheckovJsonPath(outputPath);
+    if (!jsonPath) {
+        return null;
+    }
+    try {
+        return JSON.parse((0, node_fs_1.readFileSync)(jsonPath, 'utf8'));
     }
     catch {
         return null;
@@ -1206,8 +1224,8 @@ async function runCheckovStep(config) {
         });
     }
     const configPath = (0, scanners_js_1.resolveScannerConfig)(cwd, workspace, actionPath, '.checkov.yaml');
-    const outputPath = (0, node_path_1.join)(cwd, 'checkov_output.json');
-    const args = ['-d', '.', '--output', 'json', '--output-file-path', outputPath];
+    const outputPath = (0, node_path_1.join)(cwd, 'checkov_output');
+    const args = ['-d', '.', '--output', 'json', '--output-file-path', outputPath, '--skip-download'];
     if (configPath) {
         args.push('--config-file', configPath);
     }
@@ -1217,7 +1235,7 @@ async function runCheckovStep(config) {
     const result = await (0, process_js_1.execFileSafe)('checkov', args, { cwd, allowFailure: true });
     const payload = loadCheckovJson(outputPath);
     if (!payload) {
-        const details = result.stderr.trim() || result.stdout.trim() || 'Checkov scan failed before producing checkov_output.json.';
+        const details = result.stderr.trim() || result.stdout.trim() || 'Checkov scan failed before producing Checkov JSON output.';
         return (0, step_utils_js_1.createStepResult)('checkov', 'fail', [
             {
                 check: '🔐 Checkov',
