@@ -26,11 +26,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
+      - name: Prepare smoke fixtures
+        id: fixtures
+        shell: bash
+        run: |
+          comment_one="$RUNNER_TEMP/dogfood-comment-1"
+          comment_two="$RUNNER_TEMP/dogfood-comment-2"
+          summary_dir="$RUNNER_TEMP/dogfood-summary"
+          rm -rf "$comment_one" "$comment_two" "$summary_dir"
+          cp -R test/valid "$comment_one"
+          cp -R test/valid "$comment_two"
+          cp -R test/valid "$summary_dir"
+          {
+            echo "comment_one=$comment_one"
+            echo "comment_two=$comment_two"
+            echo "summary_dir=$summary_dir"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Run deploy smoke
         id: first-run
         uses: ./
         with:
-          workdir: test/valid
+          workdir: ${{ steps.fixtures.outputs.comment_one }}
           env: dogfood-deploy
           steps: validate,plan,apply
           summary-mode: off
@@ -42,18 +59,30 @@ jobs:
         id: second-run
         uses: ./
         with:
-          workdir: test/valid
+          workdir: ${{ steps.fixtures.outputs.comment_two }}
           env: dogfood-deploy
           steps: validate,plan,apply
-          summary-mode: redacted
+          summary-mode: off
           skip-plan-upload: true
           comment-mode: ${{ inputs.decorate-pr && 'sticky' || 'off' }}
           comment-identifier: ${{ inputs.comment-identifier }}
 
-      - name: Verify deploy smoke succeeded
+      - name: Run summary smoke
+        id: summary-run
+        uses: ./
+        with:
+          workdir: ${{ steps.fixtures.outputs.summary_dir }}
+          env: dogfood-summary
+          steps: validate,plan,apply
+          summary-mode: redacted
+          skip-plan-upload: true
+          comment-mode: off
+          comment-identifier: ${{ inputs.comment-identifier }}
+
+      - name: Verify smoke runs succeeded
         run: |
-          if [ "${{ steps.first-run.outcome }}" != "success" ] || [ "${{ steps.second-run.outcome }}" != "success" ]; then
-            echo "❌ Deploy smoke failed"
+          if [ "${{ steps.first-run.outcome }}" != "success" ] || [ "${{ steps.second-run.outcome }}" != "success" ] || [ "${{ steps.summary-run.outcome }}" != "success" ]; then
+            echo "❌ Smoke workflow failed"
             exit 1
           fi
 
