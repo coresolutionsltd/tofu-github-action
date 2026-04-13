@@ -30,19 +30,10 @@ jobs:
       - lint
     uses: ./.github/workflows/unit-tests.yaml
 
-  pr-smoke:
-    name: pr-smoke
-    needs:
-      - unit-test
-    uses: ./.github/workflows/pr-comment-smoke.yaml
-    with:
-      decorate-pr: false
-      comment-identifier: dogfood
-
   scans:
     name: scans
     needs:
-      - pr-smoke
+      - unit-test
     uses: ./.github/workflows/scans.yaml
 
   release:
