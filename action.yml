@@ -275,7 +275,9 @@ runs:
     - name: Run Tofu GitHub Action
       id: run
       shell: bash
-      run: node "$GITHUB_ACTION_PATH/dist/main/index.js"
+      run: |
+        export PATH="${RUNNER_TEMP:-/tmp}/tofu-github-action/bin:${RUNNER_TEMP:-/tmp}/tofu-checkov-venv/bin:$PATH"
+        node "$GITHUB_ACTION_PATH/dist/main/index.js"
       env:
         GITHUB_TOKEN: ${{ github.token }}
         INPUT_VERSION: ${{ inputs.version }}

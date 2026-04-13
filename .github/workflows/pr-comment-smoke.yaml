@@ -30,10 +30,12 @@ jobs:
         id: fixtures
         shell: bash
         run: |
-          comment_one="$RUNNER_TEMP/dogfood-comment-1"
-          comment_two="$RUNNER_TEMP/dogfood-comment-2"
-          summary_dir="$RUNNER_TEMP/dogfood-summary"
-          rm -rf "$comment_one" "$comment_two" "$summary_dir"
+          fixture_root=".tmp/pr-comment-smoke"
+          comment_one="${fixture_root}/comment-one"
+          comment_two="${fixture_root}/comment-two"
+          summary_dir="${fixture_root}/summary"
+          rm -rf "$fixture_root"
+          mkdir -p "$fixture_root"
           cp -R test/valid "$comment_one"
           cp -R test/valid "$comment_two"
           cp -R test/valid "$summary_dir"
