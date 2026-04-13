@@ -1,6 +1,51 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 1035:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getActionInputMap = getActionInputMap;
+const INPUT_KEYS = [
+    'version',
+    'workdir',
+    'env',
+    'steps',
+    'tfvar-files',
+    'tfvars',
+    'backend-config-var-files',
+    'backend-config-vars',
+    'test-dir',
+    'test-tfvar-files',
+    'test-tfvars',
+    'tflint-version',
+    'trivy-version',
+    'checkov-version',
+    'trivy-scan-type',
+    'checkov-skip-checks',
+    'lock-timeout',
+    'parallelism',
+    'refresh',
+    'targets',
+    'artifact-retention-days',
+    'skip-plan-upload',
+    'summary-mode',
+    'comment-mode',
+    'comment-identifier',
+];
+function envKeyForInput(name) {
+    return `INPUT_${name.replace(/[^A-Za-z0-9]+/g, '_').toUpperCase()}`;
+}
+function getActionInputMap() {
+    const entries = INPUT_KEYS.map((key) => [key, process.env[envKeyForInput(key)] ?? '']);
+    return Object.fromEntries(entries);
+}
+
+
+/***/ }),
+
 /***/ 9834:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -234,41 +279,13 @@ exports.runPreflight = runPreflight;
 exports.preflightMain = preflightMain;
 const core = __importStar(__nccwpck_require__(7484));
 const constants_js_1 = __nccwpck_require__(9834);
+const action_inputs_js_1 = __nccwpck_require__(1035);
 const inputs_js_1 = __nccwpck_require__(8618);
 function runPreflight(inputs) {
     return (0, inputs_js_1.parseInputs)(inputs);
 }
-function getInputMap() {
-    return {
-        version: core.getInput('version'),
-        workdir: core.getInput('workdir'),
-        env: core.getInput('env'),
-        steps: core.getInput('steps'),
-        'tfvar-files': core.getInput('tfvar-files'),
-        tfvars: core.getInput('tfvars'),
-        'backend-config-var-files': core.getInput('backend-config-var-files'),
-        'backend-config-vars': core.getInput('backend-config-vars'),
-        'test-dir': core.getInput('test-dir'),
-        'test-tfvar-files': core.getInput('test-tfvar-files'),
-        'test-tfvars': core.getInput('test-tfvars'),
-        'tflint-version': core.getInput('tflint-version'),
-        'trivy-version': core.getInput('trivy-version'),
-        'checkov-version': core.getInput('checkov-version'),
-        'trivy-scan-type': core.getInput('trivy-scan-type'),
-        'checkov-skip-checks': core.getInput('checkov-skip-checks'),
-        'lock-timeout': core.getInput('lock-timeout'),
-        parallelism: core.getInput('parallelism'),
-        refresh: core.getInput('refresh'),
-        targets: core.getInput('targets'),
-        'artifact-retention-days': core.getInput('artifact-retention-days'),
-        'skip-plan-upload': core.getInput('skip-plan-upload'),
-        'summary-mode': core.getInput('summary-mode'),
-        'comment-mode': core.getInput('comment-mode'),
-        'comment-identifier': core.getInput('comment-identifier'),
-    };
-}
 function preflightMain() {
-    const config = runPreflight(getInputMap());
+    const config = runPreflight((0, action_inputs_js_1.getActionInputMap)());
     core.setOutput('env_slug', config.envSlug);
     core.setOutput('selected_steps', config.steps.join(','));
     core.setOutput('plan_artifact_name', config.envSlug ? `${config.envSlug}-plan.tfplan.gz` : 'plan.tfplan.gz');

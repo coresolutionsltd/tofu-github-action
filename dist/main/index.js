@@ -1,6 +1,51 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 1035:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getActionInputMap = getActionInputMap;
+const INPUT_KEYS = [
+    'version',
+    'workdir',
+    'env',
+    'steps',
+    'tfvar-files',
+    'tfvars',
+    'backend-config-var-files',
+    'backend-config-vars',
+    'test-dir',
+    'test-tfvar-files',
+    'test-tfvars',
+    'tflint-version',
+    'trivy-version',
+    'checkov-version',
+    'trivy-scan-type',
+    'checkov-skip-checks',
+    'lock-timeout',
+    'parallelism',
+    'refresh',
+    'targets',
+    'artifact-retention-days',
+    'skip-plan-upload',
+    'summary-mode',
+    'comment-mode',
+    'comment-identifier',
+];
+function envKeyForInput(name) {
+    return `INPUT_${name.replace(/[^A-Za-z0-9]+/g, '_').toUpperCase()}`;
+}
+function getActionInputMap() {
+    const entries = INPUT_KEYS.map((key) => [key, process.env[envKeyForInput(key)] ?? '']);
+    return Object.fromEntries(entries);
+}
+
+
+/***/ }),
+
 /***/ 9834:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -516,6 +561,7 @@ exports.runMain = runMain;
 exports.executeSelectedSteps = executeSelectedSteps;
 exports.main = main;
 const core = __importStar(__nccwpck_require__(7484));
+const action_inputs_js_1 = __nccwpck_require__(1035);
 const constants_js_1 = __nccwpck_require__(9834);
 const comments_js_1 = __nccwpck_require__(8633);
 const apply_comment_js_1 = __nccwpck_require__(1784);
@@ -644,35 +690,6 @@ function runMain(config, stepResults) {
         hasFailures: stepResults.some((step) => step.status === 'fail'),
     };
 }
-function getInputMap() {
-    return {
-        version: core.getInput('version'),
-        workdir: core.getInput('workdir'),
-        env: core.getInput('env'),
-        steps: core.getInput('steps'),
-        'tfvar-files': core.getInput('tfvar-files'),
-        tfvars: core.getInput('tfvars'),
-        'backend-config-var-files': core.getInput('backend-config-var-files'),
-        'backend-config-vars': core.getInput('backend-config-vars'),
-        'test-dir': core.getInput('test-dir'),
-        'test-tfvar-files': core.getInput('test-tfvar-files'),
-        'test-tfvars': core.getInput('test-tfvars'),
-        'tflint-version': core.getInput('tflint-version'),
-        'trivy-version': core.getInput('trivy-version'),
-        'checkov-version': core.getInput('checkov-version'),
-        'trivy-scan-type': core.getInput('trivy-scan-type'),
-        'checkov-skip-checks': core.getInput('checkov-skip-checks'),
-        'lock-timeout': core.getInput('lock-timeout'),
-        parallelism: core.getInput('parallelism'),
-        refresh: core.getInput('refresh'),
-        targets: core.getInput('targets'),
-        'artifact-retention-days': core.getInput('artifact-retention-days'),
-        'skip-plan-upload': core.getInput('skip-plan-upload'),
-        'summary-mode': core.getInput('summary-mode'),
-        'comment-mode': core.getInput('comment-mode'),
-        'comment-identifier': core.getInput('comment-identifier'),
-    };
-}
 async function executeSelectedSteps(config) {
     const results = [];
     let mutatingBlockReason = null;
@@ -735,7 +752,7 @@ async function executeSelectedSteps(config) {
     return results;
 }
 async function main() {
-    const config = (0, inputs_js_1.parseInputs)(getInputMap());
+    const config = (0, inputs_js_1.parseInputs)((0, action_inputs_js_1.getActionInputMap)());
     const stepResults = await executeSelectedSteps(config);
     const artifacts = runMain(config, stepResults);
     for (const [key, value] of Object.entries(artifacts.outputs)) {

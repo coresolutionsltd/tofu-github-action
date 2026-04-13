@@ -1,4 +1,5 @@
 import * as core from '@actions/core';
+import { getActionInputMap } from './action-inputs.js';
 import { EXECUTION_ORDER } from './constants.js';
 import type { ParsedConfig, RuntimeArtifacts, StepResult } from './types.js';
 import { syncStickyComments } from './github/comments.js';
@@ -155,36 +156,6 @@ export function runMain(config: ParsedConfig, stepResults: StepResult[]): Runtim
   };
 }
 
-function getInputMap(): Record<string, string> {
-  return {
-    version: core.getInput('version'),
-    workdir: core.getInput('workdir'),
-    env: core.getInput('env'),
-    steps: core.getInput('steps'),
-    'tfvar-files': core.getInput('tfvar-files'),
-    tfvars: core.getInput('tfvars'),
-    'backend-config-var-files': core.getInput('backend-config-var-files'),
-    'backend-config-vars': core.getInput('backend-config-vars'),
-    'test-dir': core.getInput('test-dir'),
-    'test-tfvar-files': core.getInput('test-tfvar-files'),
-    'test-tfvars': core.getInput('test-tfvars'),
-    'tflint-version': core.getInput('tflint-version'),
-    'trivy-version': core.getInput('trivy-version'),
-    'checkov-version': core.getInput('checkov-version'),
-    'trivy-scan-type': core.getInput('trivy-scan-type'),
-    'checkov-skip-checks': core.getInput('checkov-skip-checks'),
-    'lock-timeout': core.getInput('lock-timeout'),
-    parallelism: core.getInput('parallelism'),
-    refresh: core.getInput('refresh'),
-    targets: core.getInput('targets'),
-    'artifact-retention-days': core.getInput('artifact-retention-days'),
-    'skip-plan-upload': core.getInput('skip-plan-upload'),
-    'summary-mode': core.getInput('summary-mode'),
-    'comment-mode': core.getInput('comment-mode'),
-    'comment-identifier': core.getInput('comment-identifier'),
-  };
-}
-
 export async function executeSelectedSteps(config: ParsedConfig): Promise<StepResult[]> {
   const results: StepResult[] = [];
   let mutatingBlockReason: string | null = null;
@@ -251,7 +222,7 @@ export async function executeSelectedSteps(config: ParsedConfig): Promise<StepRe
 }
 
 export async function main(): Promise<void> {
-  const config = parseInputs(getInputMap());
+  const config = parseInputs(getActionInputMap());
   const stepResults = await executeSelectedSteps(config);
   const artifacts = runMain(config, stepResults);
 
