@@ -19,9 +19,13 @@ function renderDetailsBlock(details: string | undefined): string {
   if (!details?.trim()) return '';
   return `
 
-\`\`\`text
+<details><summary>Show full plan</summary>
+
+\`\`\`diff
 ${redactText(details.trimEnd())}
 \`\`\`
+
+</details>
 `;
 }
 
