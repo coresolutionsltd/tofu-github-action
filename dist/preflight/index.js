@@ -331,12 +331,15 @@ exports.InputValidationError = InputValidationError;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.sanitizeEnvSlug = sanitizeEnvSlug;
+const MAX_ENV_SLUG_LENGTH = 50;
 function sanitizeEnvSlug(value) {
     return value
         .trim()
         .toLowerCase()
         .replace(/[^a-z0-9._-]+/g, '-')
-        .replace(/^-+|-+$/g, '');
+        .replace(/^-+|-+$/g, '')
+        .slice(0, MAX_ENV_SLUG_LENGTH)
+        .replace(/-+$/g, '');
 }
 
 
