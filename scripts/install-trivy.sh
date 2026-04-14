@@ -67,7 +67,7 @@ main() {
 
   archive_path="$(mktemp "${RUNNER_TEMP:-/tmp}/trivy-${version}-XXXXXX.tar.gz")"
   extract_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/trivy-${version}-XXXXXX")"
-  curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${version}/${asset}" -o "${archive_path}"
+  curl -fsSL --retry 3 --retry-delay 2 --retry-connrefused "https://github.com/aquasecurity/trivy/releases/download/v${version}/${asset}" -o "${archive_path}"
   actual="$(hash_file "${archive_path}")"
 
   if [[ "${actual}" != "${expected}" ]]; then
