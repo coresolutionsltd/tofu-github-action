@@ -879,9 +879,10 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.renderChecksComment = renderChecksComment;
 const markers_js_1 = __nccwpck_require__(1492);
 const markdown_js_1 = __nccwpck_require__(843);
+const checks_title_js_1 = __nccwpck_require__(3748);
 function renderChecksComment(config, steps) {
     const marker = (0, markers_js_1.buildMarker)(config.commentIdentifier, 'checks', config.envSlug);
-    const header = `### 🧪 Tofu Checks${config.env ? ` (${config.env})` : ''}`;
+    const header = `### ${(0, checks_title_js_1.buildChecksTitle)(steps, config.env)}`;
     const rows = steps.flatMap((step) => step.summaryRows);
     return `${marker}
 ${header}
@@ -899,9 +900,42 @@ ${(0, markdown_js_1.renderTable)(rows)}`;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.renderChecksSummary = renderChecksSummary;
 const markdown_js_1 = __nccwpck_require__(843);
+const checks_title_js_1 = __nccwpck_require__(3748);
 function renderChecksSummary(config, steps) {
-    const title = `## 🧪 Tofu Checks${config.env ? ` (${config.env})` : ''}`;
+    const title = `## ${(0, checks_title_js_1.buildChecksTitle)(steps, config.env)}`;
     return `${title}\n\n${(0, markdown_js_1.renderTable)(steps.flatMap((step) => step.summaryRows))}\n`;
+}
+
+
+/***/ }),
+
+/***/ 3748:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.buildChecksTitle = buildChecksTitle;
+const CATEGORY_ORDER = ['Validate', 'Test', 'Scan'];
+const STEP_TO_CATEGORY = {
+    validate: 'Validate',
+    lint: 'Validate',
+    test: 'Test',
+    trivy: 'Scan',
+    checkov: 'Scan',
+    plan: null,
+    apply: null,
+};
+function buildChecksTitle(steps, env) {
+    const categories = new Set();
+    for (const step of steps) {
+        const category = STEP_TO_CATEGORY[step.name];
+        if (category)
+            categories.add(category);
+    }
+    const ordered = CATEGORY_ORDER.filter((c) => categories.has(c));
+    const label = ordered.length > 0 ? `Tofu ${ordered.join(', ')}` : 'Tofu Checks';
+    return `🧪 ${label}${env ? ` (${env})` : ''}`;
 }
 
 

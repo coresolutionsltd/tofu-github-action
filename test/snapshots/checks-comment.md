@@ -1,5 +1,5 @@
 <!-- tf-github-action:checks:dev -->
-### 🧪 Tofu Checks (dev)
+### 🧪 Tofu Validate (dev)
 | Check | Status | Details |
 |-------|--------|---------|
 | 🎯 Tofu Format | ✅ Pass | All files are properly formatted |

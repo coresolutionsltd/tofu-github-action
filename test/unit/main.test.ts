@@ -88,10 +88,10 @@ describe('runMain', () => {
 
     const artifacts = runMain(config, results);
 
-    expect(artifacts.comments.checksBody).toContain('### 🧪 Tofu Checks (dev)');
+    expect(artifacts.comments.checksBody).toContain('### 🧪 Tofu Validate (dev)');
     expect(artifacts.comments.planBody).toContain('### 🏗️ Tofu Plan (dev)');
     expect(artifacts.comments.applyBody).toContain('### 🚀 Tofu Apply (dev)');
-    expect(artifacts.summaries.checksBody).toContain('## 🧪 Tofu Checks (dev)');
+    expect(artifacts.summaries.checksBody).toContain('## 🧪 Tofu Validate (dev)');
     expect(artifacts.outputs.validate_status).toBe('pass');
     expect(artifacts.outputs.plan_status).toBe('pass');
     expect(artifacts.outputs.apply_status).toBe('pass');

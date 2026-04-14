@@ -99,7 +99,7 @@ jobs:
           const comments = JSON.parse(process.env.COMMENTS_JSON ?? '[]');
           const identifier = process.env.COMMENT_IDENTIFIER;
           const expected = new Map([
-            [`<!-- ${identifier}:checks:dogfood-deploy -->`, '### 🧪 Tofu Checks'],
+            [`<!-- ${identifier}:checks:dogfood-deploy -->`, '### 🧪 Tofu '],
             [`<!-- ${identifier}:plan:dogfood-deploy -->`, '### 🏗️ Tofu Plan'],
             [`<!-- ${identifier}:apply:dogfood-deploy -->`, '### 🚀 Tofu Apply'],
           ]);
