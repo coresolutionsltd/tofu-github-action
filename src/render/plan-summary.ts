@@ -8,11 +8,26 @@ type PlanSummaryData =
         update: number;
         destroy: number;
       };
+      details?: string;
     }
   | {
       status: 'fail' | 'skip';
       reason: string;
     };
+
+function renderDetailsBlock(details: string | undefined): string {
+  if (!details?.trim()) return '';
+  return `
+
+<details><summary>Show full plan</summary>
+
+\`\`\`text
+${redactText(details.trimEnd())}
+\`\`\`
+
+</details>
+`;
+}
 
 export function renderPlanSummary(data: PlanSummaryData, env: string): string {
   if (data.status !== 'pass') {
@@ -30,6 +45,6 @@ export function renderPlanSummary(data: PlanSummaryData, env: string): string {
 |--------|-------|
 | ➕ Create | ${data.counts.create} |
 | 🔄 Update | ${data.counts.update} |
-| ❌ Destroy | ${data.counts.destroy} |
+| ❌ Destroy | ${data.counts.destroy} |${renderDetailsBlock(data.details)}
 `;
 }

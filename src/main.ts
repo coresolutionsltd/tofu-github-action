@@ -75,6 +75,7 @@ export function runMain(config: ParsedConfig, stepResults: StepResult[]): Runtim
                 update: metricNumber(planStep, 'update'),
                 destroy: metricNumber(planStep, 'destroy'),
               },
+              details: planStep.details,
             }
           : {
               status: planStep.status,

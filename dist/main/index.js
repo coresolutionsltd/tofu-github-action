@@ -661,6 +661,7 @@ function runMain(config, stepResults) {
                         update: metricNumber(planStep, 'update'),
                         destroy: metricNumber(planStep, 'destroy'),
                     },
+                    details: planStep.details,
                 }
                 : {
                     status: planStep.status,
@@ -1024,6 +1025,20 @@ ${heading}
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.renderPlanSummary = renderPlanSummary;
 const redact_js_1 = __nccwpck_require__(3055);
+function renderDetailsBlock(details) {
+    if (!details?.trim())
+        return '';
+    return `
+
+<details><summary>Show full plan</summary>
+
+\`\`\`text
+${(0, redact_js_1.redactText)(details.trimEnd())}
+\`\`\`
+
+</details>
+`;
+}
 function renderPlanSummary(data, env) {
     if (data.status !== 'pass') {
         const status = data.status === 'skip' ? '⚠️ Skipped' : '❌ Fail';
@@ -1039,7 +1054,7 @@ function renderPlanSummary(data, env) {
 |--------|-------|
 | ➕ Create | ${data.counts.create} |
 | 🔄 Update | ${data.counts.update} |
-| ❌ Destroy | ${data.counts.destroy} |
+| ❌ Destroy | ${data.counts.destroy} |${renderDetailsBlock(data.details)}
 `;
 }
 
