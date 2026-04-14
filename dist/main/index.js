@@ -88,6 +88,7 @@ exports.TRIVY_SCAN_TYPES = ['config', 'fs'];
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.execFileSafe = execFileSafe;
 const node_child_process_1 = __nccwpck_require__(1421);
+const redact_js_1 = __nccwpck_require__(3055);
 async function execFileSafe(command, args = [], options = {}) {
     return await new Promise((resolve, reject) => {
         const child = (0, node_child_process_1.spawn)(command, args, {
@@ -111,7 +112,7 @@ async function execFileSafe(command, args = [], options = {}) {
                 stderr,
             };
             if (!options.allowFailure && result.exitCode !== 0) {
-                const error = new Error(`${command} ${args.join(' ')} failed with exit code ${result.exitCode}\n${stderr || stdout}`);
+                const error = new Error((0, redact_js_1.redactText)(`${command} ${args.join(' ')} failed with exit code ${result.exitCode}\n${stderr || stdout}`));
                 reject(error);
                 return;
             }
@@ -573,6 +574,7 @@ const plan_summary_js_1 = __nccwpck_require__(7900);
 const outputs_js_1 = __nccwpck_require__(2257);
 const inputs_js_1 = __nccwpck_require__(8618);
 const summary_js_1 = __nccwpck_require__(6824);
+const register_secrets_js_1 = __nccwpck_require__(3099);
 const init_js_1 = __nccwpck_require__(8245);
 const validate_js_1 = __nccwpck_require__(9817);
 const plan_js_1 = __nccwpck_require__(7448);
@@ -753,6 +755,7 @@ async function executeSelectedSteps(config) {
 }
 async function main() {
     const config = (0, inputs_js_1.parseInputs)((0, action_inputs_js_1.getActionInputMap)());
+    (0, register_secrets_js_1.registerConfigSecrets)(config);
     const stepResults = await executeSelectedSteps(config);
     const artifacts = runMain(config, stepResults);
     for (const [key, value] of Object.entries(artifacts.outputs)) {
@@ -820,6 +823,7 @@ function mergeStepOutputs(outputs, steps) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.renderApplyComment = renderApplyComment;
 const markers_js_1 = __nccwpck_require__(1492);
+const redact_js_1 = __nccwpck_require__(3055);
 function renderApplyComment(config, data) {
     const marker = (0, markers_js_1.buildMarker)(config.commentIdentifier, 'apply', config.envSlug);
     const heading = `### 🚀 Tofu Apply${config.env ? ` (${config.env})` : ''}`;
@@ -828,7 +832,7 @@ function renderApplyComment(config, data) {
         return `${marker}
 ${heading}
 **Status:** ${status}
-**Reason:** ${data.reason}`.trimEnd();
+**Reason:** ${(0, redact_js_1.redactText)(data.reason)}`.trimEnd();
     }
     return `${marker}
 ${heading}
@@ -841,12 +845,13 @@ ${data.counts.forgotten > 0 ? `**Forgotten:** ${data.counts.forgotten}` : ''}`.t
 /***/ }),
 
 /***/ 6117:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.renderApplySummary = renderApplySummary;
+const redact_js_1 = __nccwpck_require__(3055);
 function renderApplySummary(env, data) {
     if (data.status !== 'pass') {
         const status = data.status === 'skip' ? '⚠️ Skipped' : '❌ Fail';
@@ -854,7 +859,7 @@ function renderApplySummary(env, data) {
 
 **Status:** ${status}
 **Reason:** ${data.reason}
-${data.details ? `\n\n${data.details}` : ''}
+${data.details ? `\n\n${(0, redact_js_1.redactText)(data.details)}` : ''}
 `;
     }
     return `## 🚀 Tofu Apply${env ? ` (${env})` : ''}
@@ -863,7 +868,7 @@ ${data.details ? `\n\n${data.details}` : ''}
 **Resources:** ${data.counts.added} added, ${data.counts.changed} changed, ${data.counts.destroyed} destroyed
 ${data.counts.imported > 0 ? `\n**Imported:** ${data.counts.imported}` : ''}
 ${data.counts.forgotten > 0 ? `\n**Forgotten:** ${data.counts.forgotten}` : ''}
-${data.details ? `\n\n${data.details}` : ''}
+${data.details ? `\n\n${(0, redact_js_1.redactText)(data.details)}` : ''}
 `;
 }
 
@@ -949,6 +954,7 @@ function buildChecksTitle(steps, env) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.renderPlanComment = renderPlanComment;
 const markers_js_1 = __nccwpck_require__(1492);
+const redact_js_1 = __nccwpck_require__(3055);
 function renderPlanComment(config, data) {
     const marker = (0, markers_js_1.buildMarker)(config.commentIdentifier, 'plan', config.envSlug);
     const heading = `### 🏗️ Tofu Plan${config.env ? ` (${config.env})` : ''}`;
@@ -957,7 +963,7 @@ function renderPlanComment(config, data) {
         return `${marker}
 ${heading}
 **Status:** ${status}
-**Reason:** ${data.reason}`.trimEnd();
+**Reason:** ${(0, redact_js_1.redactText)(data.reason)}`.trimEnd();
     }
     return `${marker}
 ${heading}
@@ -972,19 +978,20 @@ ${heading}
 /***/ }),
 
 /***/ 7900:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.renderPlanSummary = renderPlanSummary;
+const redact_js_1 = __nccwpck_require__(3055);
 function renderPlanSummary(data, env) {
     if (data.status !== 'pass') {
         const status = data.status === 'skip' ? '⚠️ Skipped' : '❌ Fail';
         return `## 🏗️ Tofu Plan${env ? ` (${env})` : ''}
 
 **Status:** ${status}
-**Reason:** ${data.reason}
+**Reason:** ${(0, redact_js_1.redactText)(data.reason)}
 `;
     }
     return `## 🏗️ Tofu Plan${env ? ` (${env})` : ''}
@@ -1871,14 +1878,15 @@ exports.InputValidationError = InputValidationError;
 /***/ }),
 
 /***/ 843:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.renderTable = renderTable;
+const redact_js_1 = __nccwpck_require__(3055);
 function escapeCell(value) {
-    return value.replace(/\|/g, '\\|').replace(/\n/g, '<br>');
+    return (0, redact_js_1.redactText)(value).replace(/\|/g, '\\|').replace(/\n/g, '<br>');
 }
 function renderTable(rows) {
     const header = [
@@ -1908,6 +1916,100 @@ function resolveWorkdir(config) {
 }
 function planArtifactBaseName(config) {
     return config.envSlug ? `${config.envSlug}-plan` : 'plan';
+}
+
+
+/***/ }),
+
+/***/ 3055:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.registerSecret = registerSecret;
+exports.redactText = redactText;
+exports.redactedDetails = redactedDetails;
+exports.resetSecretsForTesting = resetSecretsForTesting;
+const core = __importStar(__nccwpck_require__(7484));
+const MIN_SECRET_LENGTH = 4;
+const registered = new Set();
+function registerSecret(value) {
+    if (!value || value.length < MIN_SECRET_LENGTH)
+        return;
+    if (registered.has(value))
+        return;
+    registered.add(value);
+    core.setSecret(value);
+}
+function redactText(text) {
+    if (!text)
+        return text;
+    let result = text;
+    for (const secret of registered) {
+        if (result.includes(secret)) {
+            result = result.split(secret).join('***');
+        }
+    }
+    return result;
+}
+function redactedDetails() {
+    return 'Details redacted';
+}
+function resetSecretsForTesting() {
+    registered.clear();
+}
+
+
+/***/ }),
+
+/***/ 3099:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.registerConfigSecrets = registerConfigSecrets;
+const redact_js_1 = __nccwpck_require__(3055);
+function registerConfigSecrets(config) {
+    for (const source of [config.tfvars, config.backendConfigVars, config.testTfvars]) {
+        for (const { value } of source) {
+            (0, redact_js_1.registerSecret)(value);
+        }
+    }
 }
 
 

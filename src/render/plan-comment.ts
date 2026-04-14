@@ -1,5 +1,6 @@
 import type { ParsedConfig } from '../types.js';
 import { buildMarker } from '../github/markers.js';
+import { redactText } from '../util/redact.js';
 
 type PlanCommentData =
   | {
@@ -24,7 +25,7 @@ export function renderPlanComment(config: ParsedConfig, data: PlanCommentData): 
     return `${marker}
 ${heading}
 **Status:** ${status}
-**Reason:** ${data.reason}`.trimEnd();
+**Reason:** ${redactText(data.reason)}`.trimEnd();
   }
 
   return `${marker}

@@ -1,7 +1,8 @@
 import type { SummaryRow } from '../types.js';
+import { redactText } from './redact.js';
 
 function escapeCell(value: string): string {
-  return value.replace(/\|/g, '\\|').replace(/\n/g, '<br>');
+  return redactText(value).replace(/\|/g, '\\|').replace(/\n/g, '<br>');
 }
 
 export function renderTable(rows: SummaryRow[]): string {

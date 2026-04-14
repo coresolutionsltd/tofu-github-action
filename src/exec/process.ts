@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { redactText } from '../util/redact.js';
 
 export type ExecResult = {
   exitCode: number;
@@ -41,7 +42,9 @@ export async function execFileSafe(command: string, args: string[] = [], options
 
       if (!options.allowFailure && result.exitCode !== 0) {
         const error = new Error(
-          `${command} ${args.join(' ')} failed with exit code ${result.exitCode}\n${stderr || stdout}`,
+          redactText(
+            `${command} ${args.join(' ')} failed with exit code ${result.exitCode}\n${stderr || stdout}`,
+          ),
         );
         reject(error);
         return;

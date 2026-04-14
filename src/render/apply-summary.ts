@@ -1,3 +1,5 @@
+import { redactText } from '../util/redact.js';
+
 type ApplySummaryData =
   | {
       status: 'pass';
@@ -23,7 +25,7 @@ export function renderApplySummary(env: string, data: ApplySummaryData): string 
 
 **Status:** ${status}
 **Reason:** ${data.reason}
-${data.details ? `\n\n${data.details}` : ''}
+${data.details ? `\n\n${redactText(data.details)}` : ''}
 `;
   }
 
@@ -33,6 +35,6 @@ ${data.details ? `\n\n${data.details}` : ''}
 **Resources:** ${data.counts.added} added, ${data.counts.changed} changed, ${data.counts.destroyed} destroyed
 ${data.counts.imported > 0 ? `\n**Imported:** ${data.counts.imported}` : ''}
 ${data.counts.forgotten > 0 ? `\n**Forgotten:** ${data.counts.forgotten}` : ''}
-${data.details ? `\n\n${data.details}` : ''}
+${data.details ? `\n\n${redactText(data.details)}` : ''}
 `;
 }

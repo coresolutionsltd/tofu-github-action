@@ -1,3 +1,5 @@
+import { redactText } from '../util/redact.js';
+
 type PlanSummaryData =
   | {
       status: 'pass';
@@ -18,7 +20,7 @@ export function renderPlanSummary(data: PlanSummaryData, env: string): string {
     return `## 🏗️ Tofu Plan${env ? ` (${env})` : ''}
 
 **Status:** ${status}
-**Reason:** ${data.reason}
+**Reason:** ${redactText(data.reason)}
 `;
   }
 

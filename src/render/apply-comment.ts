@@ -1,5 +1,6 @@
 import type { ParsedConfig } from '../types.js';
 import { buildMarker } from '../github/markers.js';
+import { redactText } from '../util/redact.js';
 
 type ApplyCommentData =
   | {
@@ -29,7 +30,7 @@ export function renderApplyComment(
     return `${marker}
 ${heading}
 **Status:** ${status}
-**Reason:** ${data.reason}`.trimEnd();
+**Reason:** ${redactText(data.reason)}`.trimEnd();
   }
 
   return `${marker}
