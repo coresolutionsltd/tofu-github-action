@@ -544,7 +544,7 @@ function parseInputs(inputs) {
         refresh: parseOptionalBoolean(refresh, 'refresh'),
         targets: splitDelimited(targets),
         artifactRetentionDays,
-        skipPlanUpload: parseBoolean(skipPlanUpload.trim() || 'true', 'skip-plan-upload'),
+        skipPlanUpload: parseBoolean(skipPlanUpload.trim() || 'false', 'skip-plan-upload'),
         summaryMode: parseEnum(summaryMode, constants_js_1.SUMMARY_MODES, 'summary-mode', 'redacted'),
         commentMode: parseEnum(commentMode, constants_js_1.COMMENT_MODES, 'comment-mode', 'sticky'),
         commentIdentifier: commentIdentifier.trim() || 'tf-github-action',

@@ -169,7 +169,7 @@ export function parseInputs(inputs: InputMap): ParsedConfig {
     refresh: parseOptionalBoolean(refresh, 'refresh'),
     targets: splitDelimited(targets),
     artifactRetentionDays,
-    skipPlanUpload: parseBoolean(skipPlanUpload.trim() || 'true', 'skip-plan-upload'),
+    skipPlanUpload: parseBoolean(skipPlanUpload.trim() || 'false', 'skip-plan-upload'),
     summaryMode: parseEnum<SummaryMode>(summaryMode, SUMMARY_MODES, 'summary-mode', 'redacted'),
     commentMode: parseEnum<CommentMode>(commentMode, COMMENT_MODES, 'comment-mode', 'sticky'),
     commentIdentifier: commentIdentifier.trim() || 'tf-github-action',

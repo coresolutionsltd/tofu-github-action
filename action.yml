@@ -108,9 +108,9 @@ inputs:
     required: false
     default: ''
   skip-plan-upload:
-    description: Skip uploading the generated plan artifact.
+    description: Skip uploading the generated plan artifact. Defaults to false so follow-up apply jobs can download it.
     required: false
-    default: 'true'
+    default: 'false'
   summary-mode:
     description: Summary mode for validate, lint, trivy, checkov, test, plan, and apply. Allowed values are `full`, `redacted`, and `off`.
     required: false

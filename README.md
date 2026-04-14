@@ -70,7 +70,7 @@ Workflow summaries are automatically updated from each stage, making it easier t
 | `refresh` | <p>Refresh behavior for plan/apply. Allowed values are <code>true</code> and <code>false</code>.</p> | `false` | `""` |
 | `targets` | <p>Comma or newline separated list of target resources for plan/apply.</p> | `false` | `""` |
 | `artifact-retention-days` | <p>Retention days for uploaded plan artifacts, from 1 to 90. Empty uses the repository default.</p> | `false` | `""` |
-| `skip-plan-upload` | <p>Skip uploading the generated plan artifact.</p> | `false` | `true` |
+| `skip-plan-upload` | <p>Skip uploading the generated plan artifact. Defaults to false so follow-up apply jobs can download it.</p> | `false` | `false` |
 | `summary-mode` | <p>Summary mode for validate, lint, trivy, checkov, test, plan, and apply. Allowed values are <code>full</code>, <code>redacted</code>, and <code>off</code>.</p> | `false` | `redacted` |
 | `comment-mode` | <p>PR comment mode. Use <code>sticky</code> to update a single comment or <code>off</code> to disable comments.</p> | `false` | `sticky` |
 | `comment-identifier` | <p>Identifier used to find and update sticky PR comments.</p> | `false` | `tf-github-action` |
