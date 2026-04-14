@@ -574,6 +574,7 @@ const plan_summary_js_1 = __nccwpck_require__(7900);
 const outputs_js_1 = __nccwpck_require__(2257);
 const inputs_js_1 = __nccwpck_require__(8618);
 const summary_js_1 = __nccwpck_require__(6824);
+const paths_js_1 = __nccwpck_require__(188);
 const register_secrets_js_1 = __nccwpck_require__(3099);
 const init_js_1 = __nccwpck_require__(8245);
 const validate_js_1 = __nccwpck_require__(9817);
@@ -756,6 +757,7 @@ async function executeSelectedSteps(config) {
 async function main() {
     const config = (0, inputs_js_1.parseInputs)((0, action_inputs_js_1.getActionInputMap)());
     (0, register_secrets_js_1.registerConfigSecrets)(config);
+    (0, paths_js_1.assertWorkdirExists)(config);
     const stepResults = await executeSelectedSteps(config);
     const artifacts = runMain(config, stepResults);
     for (const [key, value] of Object.entries(artifacts.outputs)) {
@@ -1909,10 +1911,25 @@ function renderTable(rows) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.resolveWorkdir = resolveWorkdir;
+exports.assertWorkdirExists = assertWorkdirExists;
 exports.planArtifactBaseName = planArtifactBaseName;
+const node_fs_1 = __nccwpck_require__(3024);
 const node_path_1 = __nccwpck_require__(6760);
 function resolveWorkdir(config) {
     return (0, node_path_1.join)(process.env.GITHUB_WORKSPACE || process.cwd(), config.workdir);
+}
+function assertWorkdirExists(config) {
+    const workdir = resolveWorkdir(config);
+    let stats;
+    try {
+        stats = (0, node_fs_1.statSync)(workdir);
+    }
+    catch {
+        throw new Error(`workdir does not exist: ${workdir}`);
+    }
+    if (!stats.isDirectory()) {
+        throw new Error(`workdir is not a directory: ${workdir}`);
+    }
 }
 function planArtifactBaseName(config) {
     return config.envSlug ? `${config.envSlug}-plan` : 'plan';

@@ -12,6 +12,7 @@ import { renderPlanSummary } from './render/plan-summary.js';
 import { createBaseOutputs, mergeStepOutputs } from './outputs.js';
 import { parseInputs } from './inputs.js';
 import { appendStepSummary } from './util/summary.js';
+import { assertWorkdirExists } from './util/paths.js';
 import { registerConfigSecrets } from './util/register-secrets.js';
 import { runInit } from './steps/init.js';
 import { runValidateStep } from './steps/validate.js';
@@ -225,6 +226,7 @@ export async function executeSelectedSteps(config: ParsedConfig): Promise<StepRe
 export async function main(): Promise<void> {
   const config = parseInputs(getActionInputMap());
   registerConfigSecrets(config);
+  assertWorkdirExists(config);
   const stepResults = await executeSelectedSteps(config);
   const artifacts = runMain(config, stepResults);
 
