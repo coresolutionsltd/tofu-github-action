@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import * as core from '@actions/core';
 import { redactText } from '../util/redact.js';
 
 export type ExecResult = {
@@ -14,6 +15,7 @@ export type ExecOptions = {
 };
 
 export async function execFileSafe(command: string, args: string[] = [], options: ExecOptions = {}): Promise<ExecResult> {
+  core.debug(redactText(`exec: ${command} ${args.join(' ')}${options.cwd ? ` (cwd=${options.cwd})` : ''}`));
   return await new Promise<ExecResult>((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: options.cwd,

@@ -169,6 +169,7 @@ export async function executeSelectedSteps(config: ParsedConfig): Promise<StepRe
   }
 
   for (const step of orderedSteps) {
+    core.debug(`step start: ${step}`);
     switch (step) {
       case 'validate':
         results.push(await runValidateStep(config));
@@ -218,6 +219,7 @@ export async function executeSelectedSteps(config: ParsedConfig): Promise<StepRe
         }
         break;
     }
+    core.debug(`step end: ${step} status=${results.at(-1)?.status ?? 'unknown'}`);
   }
 
   return results;

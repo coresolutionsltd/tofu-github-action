@@ -81,15 +81,50 @@ exports.TRIVY_SCAN_TYPES = ['config', 'fs'];
 /***/ }),
 
 /***/ 928:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.execFileSafe = execFileSafe;
 const node_child_process_1 = __nccwpck_require__(1421);
+const core = __importStar(__nccwpck_require__(7484));
 const redact_js_1 = __nccwpck_require__(3055);
 async function execFileSafe(command, args = [], options = {}) {
+    core.debug((0, redact_js_1.redactText)(`exec: ${command} ${args.join(' ')}${options.cwd ? ` (cwd=${options.cwd})` : ''}`));
     return await new Promise((resolve, reject) => {
         const child = (0, node_child_process_1.spawn)(command, args, {
             cwd: options.cwd,
@@ -702,6 +737,7 @@ async function executeSelectedSteps(config) {
         await (0, init_js_1.runInit)(config);
     }
     for (const step of orderedSteps) {
+        core.debug(`step start: ${step}`);
         switch (step) {
             case 'validate':
                 results.push(await (0, validate_js_1.runValidateStep)(config));
@@ -751,6 +787,7 @@ async function executeSelectedSteps(config) {
                 }
                 break;
         }
+        core.debug(`step end: ${step} status=${results.at(-1)?.status ?? 'unknown'}`);
     }
     return results;
 }
