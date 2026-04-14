@@ -71,7 +71,12 @@ inputs:
     required: false
     default: ''
   checkov-version:
-    description: Exact Checkov version to install. The bundled lock file currently supports `3.2.497`.
+    description: >-
+      Exact Checkov version to install. Pinned to the version whose
+      hash-locked pip requirements file ships in `security/checkov/`;
+      only that version will install successfully. To upgrade, add a new
+      locked requirements file under `security/checkov/<version>/` and
+      update this default. The bundled lock file currently supports `3.2.497`.
     required: false
     default: 3.2.497
   trivy-scan-type:
