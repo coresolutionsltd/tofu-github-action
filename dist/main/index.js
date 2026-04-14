@@ -1030,13 +1030,9 @@ function renderDetailsBlock(details) {
         return '';
     return `
 
-<details><summary>Show full plan</summary>
-
 \`\`\`text
 ${(0, redact_js_1.redactText)(details.trimEnd())}
 \`\`\`
-
-</details>
 `;
 }
 function renderPlanSummary(data, env) {
