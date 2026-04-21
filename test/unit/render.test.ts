@@ -64,6 +64,44 @@ describe('renderChecksComment', () => {
     const output = renderChecksComment(config, steps);
     expect(output).toBe(readSnapshot('checks-comment.md'));
   });
+
+  it('appends a collapsible failure block when a check step fails', () => {
+    const failingSteps: StepResult[] = [
+      {
+        name: 'test',
+        status: 'fail',
+        summaryRows: [
+          {
+            check: '🧪 Tofu Test (Unit)',
+            status: '❌ Fail',
+            details: 'OpenTofu tests failed in `tests/unit`.',
+          },
+        ],
+        details: 'assertion failed: expected 10.100.0.10, got 10.100.200.2',
+      },
+    ];
+    const output = renderChecksComment(config, failingSteps);
+    expect(output).toContain('<details><summary>🧪 Tofu Test (Unit) — failure output</summary>');
+    expect(output).toContain('assertion failed: expected 10.100.0.10, got 10.100.200.2');
+  });
+
+  it('omits the failure block when a failed step has no captured details', () => {
+    const failingSteps: StepResult[] = [
+      {
+        name: 'test',
+        status: 'fail',
+        summaryRows: [
+          {
+            check: '🧪 Tofu Test (Unit)',
+            status: '❌ Fail',
+            details: 'OpenTofu tests failed in `tests/unit`.',
+          },
+        ],
+      },
+    ];
+    const output = renderChecksComment(config, failingSteps);
+    expect(output).not.toContain('<details>');
+  });
 });
 
 describe('renderPlanComment', () => {

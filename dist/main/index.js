@@ -925,13 +925,46 @@ exports.renderChecksComment = renderChecksComment;
 const markers_js_1 = __nccwpck_require__(1492);
 const markdown_js_1 = __nccwpck_require__(843);
 const checks_title_js_1 = __nccwpck_require__(3748);
+const checks_failures_js_1 = __nccwpck_require__(7579);
 function renderChecksComment(config, steps) {
     const marker = (0, markers_js_1.buildMarker)(config.commentIdentifier, 'checks', config.envSlug);
     const header = `### ${(0, checks_title_js_1.buildChecksTitle)(steps, config.env)}`;
     const rows = steps.flatMap((step) => step.summaryRows);
+    const failureBlocks = (0, checks_failures_js_1.renderCheckFailureBlocks)(steps);
+    const trailing = failureBlocks ? `\n\n${failureBlocks}` : '';
     return `${marker}
 ${header}
-${(0, markdown_js_1.renderTable)(rows)}`;
+${(0, markdown_js_1.renderTable)(rows)}${trailing}`;
+}
+
+
+/***/ }),
+
+/***/ 7579:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.renderCheckFailureBlocks = renderCheckFailureBlocks;
+const redact_js_1 = __nccwpck_require__(3055);
+// Keep per-step output bounded so a single catastrophic failure does not blow
+// past GitHub's 65 KiB step-summary / PR-comment limits and stop later content
+// from rendering. Everything above the threshold is dropped with a notice.
+const MAX_FAILURE_BODY_LENGTH = 60_000;
+function renderFailureBlock(step) {
+    const label = step.summaryRows[0]?.check ?? step.name;
+    const body = (0, redact_js_1.redactText)((step.details ?? '').trim());
+    const truncated = body.length > MAX_FAILURE_BODY_LENGTH
+        ? `${body.slice(0, MAX_FAILURE_BODY_LENGTH)}\n… output truncated (${body.length - MAX_FAILURE_BODY_LENGTH} more chars)`
+        : body;
+    return `<details><summary>${label} — failure output</summary>\n\n\`\`\`\n${truncated}\n\`\`\`\n\n</details>`;
+}
+function renderCheckFailureBlocks(steps) {
+    return steps
+        .filter((step) => step.status === 'fail' && (step.details ?? '').trim().length > 0)
+        .map(renderFailureBlock)
+        .join('\n\n');
 }
 
 
@@ -946,9 +979,13 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.renderChecksSummary = renderChecksSummary;
 const markdown_js_1 = __nccwpck_require__(843);
 const checks_title_js_1 = __nccwpck_require__(3748);
+const checks_failures_js_1 = __nccwpck_require__(7579);
 function renderChecksSummary(config, steps) {
     const title = `## ${(0, checks_title_js_1.buildChecksTitle)(steps, config.env)}`;
-    return `${title}\n\n${(0, markdown_js_1.renderTable)(steps.flatMap((step) => step.summaryRows))}\n`;
+    const table = (0, markdown_js_1.renderTable)(steps.flatMap((step) => step.summaryRows));
+    const failureBlocks = (0, checks_failures_js_1.renderCheckFailureBlocks)(steps);
+    const trailing = failureBlocks ? `\n${failureBlocks}\n` : '';
+    return `${title}\n\n${table}\n${trailing}`;
 }
 
 
