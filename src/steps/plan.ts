@@ -5,6 +5,7 @@ import type { ParsedConfig, StepResult } from '../types.js';
 import { buildPlanArgs, buildVarArgs, runTofu } from '../exec/tofu.js';
 import { planArtifactBaseName, resolveWorkdir } from '../util/paths.js';
 import { createStepResult } from './step-utils.js';
+import { echoFailureOutput } from '../util/echo-failure.js';
 
 type PlanJson = {
   resource_changes?: Array<{
@@ -31,6 +32,7 @@ export async function runPlanStep(config: ParsedConfig): Promise<StepResult> {
   );
 
   if (plan.exitCode !== 0) {
+    echoFailureOutput('tofu plan', plan);
     return createStepResult(
       'plan',
       'fail',

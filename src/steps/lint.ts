@@ -4,6 +4,7 @@ import type { ParsedConfig, StepResult } from '../types.js';
 import { execFileSafe } from '../exec/process.js';
 import { resolveWorkdir } from '../util/paths.js';
 import { createStepResult } from './step-utils.js';
+import { echoFailureOutput } from '../util/echo-failure.js';
 
 function resolveTflintConfig(cwd: string): string | null {
   const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
@@ -71,6 +72,9 @@ export async function runLintStep(config: ParsedConfig): Promise<StepResult> {
   const issueCount = countIssues(lint.stdout || lint.stderr);
   const lintExit = initExit !== 0 ? initExit : lint.exitCode;
   const status = lintExit === 0 ? 'pass' : 'fail';
+  if (status === 'fail') {
+    echoFailureOutput('tflint', lint);
+  }
   const details =
     status === 'pass'
       ? `${issueCount} issue(s) found.`

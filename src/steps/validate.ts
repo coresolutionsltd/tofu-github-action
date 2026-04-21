@@ -2,6 +2,7 @@ import type { ParsedConfig, StepResult } from '../types.js';
 import { buildVarArgs, runTofu } from '../exec/tofu.js';
 import { resolveWorkdir } from '../util/paths.js';
 import { createStepResult } from './step-utils.js';
+import { echoFailureOutput } from '../util/echo-failure.js';
 
 type ValidateJson = {
   valid?: boolean;
@@ -40,6 +41,12 @@ export async function runValidateStep(config: ParsedConfig): Promise<StepResult>
   const fmtFailed = fmtSummary.length > 0 || fmtDiff.exitCode !== 0;
   const validateFailed = validate.exitCode !== 0 || payload.valid !== true;
   const status = fmtFailed || validateFailed ? 'fail' : 'pass';
+  if (fmtFailed) {
+    echoFailureOutput('tofu fmt', fmtDiff);
+  }
+  if (validateFailed) {
+    echoFailureOutput('tofu validate', validate);
+  }
   const validateSummary = validateFailed ? summariseDiagnostics(payload) : 'Configuration is valid';
 
   return createStepResult(

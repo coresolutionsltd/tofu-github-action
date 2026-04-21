@@ -5,6 +5,7 @@ import { execFileSafe } from '../exec/process.js';
 import { resolveScannerConfig } from '../exec/scanners.js';
 import { resolveWorkdir } from '../util/paths.js';
 import { createStepResult } from './step-utils.js';
+import { echoFailureOutput } from '../util/echo-failure.js';
 
 type TrivyJson = {
   Results?: Array<{
@@ -104,6 +105,7 @@ export async function runTrivyStep(config: ParsedConfig): Promise<StepResult> {
   const result = await execFileSafe('trivy', commandArgs, { cwd, allowFailure: true });
   const payload = loadTrivyJson(outputPath);
   if (!payload) {
+    echoFailureOutput('trivy', result);
     const details = result.stderr.trim() || result.stdout.trim() || 'Trivy scan failed before producing trivy_output.json.';
     return createStepResult(
       'trivy',

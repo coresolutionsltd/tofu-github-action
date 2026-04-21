@@ -5,6 +5,7 @@ import { execFileSafe } from '../exec/process.js';
 import { buildVarArgs, runTofu } from '../exec/tofu.js';
 import { resolveWorkdir } from '../util/paths.js';
 import { createStepResult } from './step-utils.js';
+import { echoFailureOutput } from '../util/echo-failure.js';
 
 function titleizeTestDir(testDir: string): string {
   const leaf = basename(testDir || 'tests');
@@ -92,25 +93,8 @@ export async function runTestStep(config: ParsedConfig): Promise<StepResult> {
     { cwd, allowFailure: true },
   );
   const status = testRun.exitCode === 0 ? 'pass' : 'fail';
-  // Echo the captured tofu output to the runner log on failure. The
-  // summary-only rendering made CI debugging require clicking into the
-  // step summary UI; surfacing stdout/stderr inline means the real
-  // error lands next to the ##[error] marker where operators look.
-  // tofu test writes the pass/fail summary to stdout but the diagnostic
-  // block (╷│└─ formatted errors) to stderr — we need both or the
-  // diagnostic is invisible.
   if (status === 'fail') {
-    const stdout = testRun.stdout.trim();
-    const stderr = testRun.stderr.trim();
-    if (stdout) {
-      process.stdout.write(`\n----- tofu test stdout -----\n${stdout}\n`);
-    }
-    if (stderr) {
-      process.stdout.write(`\n----- tofu test stderr -----\n${stderr}\n`);
-    }
-    if (stdout || stderr) {
-      process.stdout.write('----- end tofu test output -----\n');
-    }
+    echoFailureOutput('tofu test', testRun);
   }
   const details =
     status === 'pass'

@@ -5,6 +5,7 @@ import { execFileSafe } from '../exec/process.js';
 import { resolveScannerConfig } from '../exec/scanners.js';
 import { resolveWorkdir } from '../util/paths.js';
 import { createStepResult } from './step-utils.js';
+import { echoFailureOutput } from '../util/echo-failure.js';
 
 type CheckovJson = {
   summary?: {
@@ -144,6 +145,7 @@ export async function runCheckovStep(config: ParsedConfig): Promise<StepResult> 
   const result = await execFileSafe('checkov', args, { cwd, allowFailure: true });
   const payload = loadCheckovJson(outputPath);
   if (!payload) {
+    echoFailureOutput('checkov', result);
     const details = result.stderr.trim() || result.stdout.trim() || 'Checkov scan failed before producing Checkov JSON output.';
     return createStepResult(
       'checkov',

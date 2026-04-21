@@ -1111,6 +1111,7 @@ const node_zlib_1 = __nccwpck_require__(8522);
 const tofu_js_1 = __nccwpck_require__(3353);
 const paths_js_1 = __nccwpck_require__(188);
 const step_utils_js_1 = __nccwpck_require__(737);
+const echo_failure_js_1 = __nccwpck_require__(3880);
 function parseJsonLines(stream) {
     return stream
         .split('\n')
@@ -1214,6 +1215,9 @@ async function runApplyStep(config) {
         (0, node_fs_1.writeFileSync)(tfplanPath, (0, node_zlib_1.gunzipSync)((0, node_fs_1.readFileSync)(gzPath)));
     }
     const result = await (0, tofu_js_1.runTofu)(['apply', '-input=false', '-auto-approve', '-json', '-concise', ...(0, tofu_js_1.buildTofuCommonArgs)(config), `${planName}.tfplan`], { cwd, allowFailure: true });
+    if (result.exitCode !== 0) {
+        (0, echo_failure_js_1.echoFailureOutput)('tofu apply', result);
+    }
     const events = parseJsonLines(result.stdout);
     const summary = [...events].reverse().find((event) => event.type === 'change_summary');
     const added = summary?.changes?.add ?? 0;
@@ -1273,6 +1277,7 @@ const process_js_1 = __nccwpck_require__(928);
 const scanners_js_1 = __nccwpck_require__(6270);
 const paths_js_1 = __nccwpck_require__(188);
 const step_utils_js_1 = __nccwpck_require__(737);
+const echo_failure_js_1 = __nccwpck_require__(3880);
 function countFailures(payload) {
     if (payload.summary?.failed !== undefined) {
         return payload.summary.failed;
@@ -1367,6 +1372,7 @@ async function runCheckovStep(config) {
     const result = await (0, process_js_1.execFileSafe)('checkov', args, { cwd, allowFailure: true });
     const payload = loadCheckovJson(outputPath);
     if (!payload) {
+        (0, echo_failure_js_1.echoFailureOutput)('checkov', result);
         const details = result.stderr.trim() || result.stdout.trim() || 'Checkov scan failed before producing Checkov JSON output.';
         return (0, step_utils_js_1.createStepResult)('checkov', 'fail', [
             {
@@ -1422,17 +1428,24 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.runInit = runInit;
 const tofu_js_1 = __nccwpck_require__(3353);
 const paths_js_1 = __nccwpck_require__(188);
+const echo_failure_js_1 = __nccwpck_require__(3880);
 async function runInit(config) {
     const cwd = (0, paths_js_1.resolveWorkdir)(config);
     const needsBackend = config.steps.includes('plan') || config.steps.includes('apply');
-    const args = ['init'];
+    const args = ['init', '-no-color'];
     if (!needsBackend) {
         args.push('-backend=false');
     }
     else {
         args.push(...(0, tofu_js_1.buildBackendConfigArgs)(config));
     }
-    await (0, tofu_js_1.runTofu)(args, { cwd });
+    // Capture failure output before rethrowing so backend-init / module
+    // download errors show in the runner log instead of being swallowed.
+    const result = await (0, tofu_js_1.runTofu)(args, { cwd, allowFailure: true });
+    if (result.exitCode !== 0) {
+        (0, echo_failure_js_1.echoFailureOutput)('tofu init', result);
+        throw new Error(`tofu init failed with exit code ${result.exitCode}`);
+    }
 }
 
 
@@ -1450,6 +1463,7 @@ const node_path_1 = __nccwpck_require__(6760);
 const process_js_1 = __nccwpck_require__(928);
 const paths_js_1 = __nccwpck_require__(188);
 const step_utils_js_1 = __nccwpck_require__(737);
+const echo_failure_js_1 = __nccwpck_require__(3880);
 function resolveTflintConfig(cwd) {
     const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
     const actionPath = process.env.GITHUB_ACTION_PATH || process.cwd();
@@ -1502,6 +1516,9 @@ async function runLintStep(config) {
     const issueCount = countIssues(lint.stdout || lint.stderr);
     const lintExit = initExit !== 0 ? initExit : lint.exitCode;
     const status = lintExit === 0 ? 'pass' : 'fail';
+    if (status === 'fail') {
+        (0, echo_failure_js_1.echoFailureOutput)('tflint', lint);
+    }
     const details = status === 'pass'
         ? `${issueCount} issue(s) found.`
         : issueCount > 0
@@ -1541,6 +1558,7 @@ const node_fs_1 = __nccwpck_require__(3024);
 const tofu_js_1 = __nccwpck_require__(3353);
 const paths_js_1 = __nccwpck_require__(188);
 const step_utils_js_1 = __nccwpck_require__(737);
+const echo_failure_js_1 = __nccwpck_require__(3880);
 function countActions(payload, action) {
     return (payload.resource_changes ?? []).filter((resource) => resource.change?.actions?.includes(action)).length;
 }
@@ -1552,6 +1570,7 @@ async function runPlanStep(config) {
     const checksumPath = `${gzPath}.sha256`;
     const plan = await (0, tofu_js_1.runTofu)(['plan', '-no-color', ...(0, tofu_js_1.buildVarArgs)(config), ...(0, tofu_js_1.buildPlanArgs)(config), '-input=false', '-out', `${planName}.tfplan`], { cwd, allowFailure: true });
     if (plan.exitCode !== 0) {
+        (0, echo_failure_js_1.echoFailureOutput)('tofu plan', plan);
         return (0, step_utils_js_1.createStepResult)('plan', 'fail', [
             {
                 check: '🏗️ Tofu Plan',
@@ -1681,6 +1700,7 @@ const process_js_1 = __nccwpck_require__(928);
 const tofu_js_1 = __nccwpck_require__(3353);
 const paths_js_1 = __nccwpck_require__(188);
 const step_utils_js_1 = __nccwpck_require__(737);
+const echo_failure_js_1 = __nccwpck_require__(3880);
 function titleizeTestDir(testDir) {
     const leaf = (0, node_path_1.basename)(testDir || 'tests');
     return leaf
@@ -1744,25 +1764,8 @@ async function runTestStep(config) {
     }
     const testRun = await (0, tofu_js_1.runTofu)(['test', '-no-color', `-test-directory=${testDir}`, ...(0, tofu_js_1.buildVarArgs)(config, 'test')], { cwd, allowFailure: true });
     const status = testRun.exitCode === 0 ? 'pass' : 'fail';
-    // Echo the captured tofu output to the runner log on failure. The
-    // summary-only rendering made CI debugging require clicking into the
-    // step summary UI; surfacing stdout/stderr inline means the real
-    // error lands next to the ##[error] marker where operators look.
-    // tofu test writes the pass/fail summary to stdout but the diagnostic
-    // block (╷│└─ formatted errors) to stderr — we need both or the
-    // diagnostic is invisible.
     if (status === 'fail') {
-        const stdout = testRun.stdout.trim();
-        const stderr = testRun.stderr.trim();
-        if (stdout) {
-            process.stdout.write(`\n----- tofu test stdout -----\n${stdout}\n`);
-        }
-        if (stderr) {
-            process.stdout.write(`\n----- tofu test stderr -----\n${stderr}\n`);
-        }
-        if (stdout || stderr) {
-            process.stdout.write('----- end tofu test output -----\n');
-        }
+        (0, echo_failure_js_1.echoFailureOutput)('tofu test', testRun);
     }
     const details = status === 'pass'
         ? `All OpenTofu tests passed in \`${testDir}\`.`
@@ -1799,6 +1802,7 @@ const process_js_1 = __nccwpck_require__(928);
 const scanners_js_1 = __nccwpck_require__(6270);
 const paths_js_1 = __nccwpck_require__(188);
 const step_utils_js_1 = __nccwpck_require__(737);
+const echo_failure_js_1 = __nccwpck_require__(3880);
 function countFailures(payload) {
     return (payload.Results ?? [])
         .flatMap((result) => result.Misconfigurations ?? [])
@@ -1865,6 +1869,7 @@ async function runTrivyStep(config) {
     const result = await (0, process_js_1.execFileSafe)('trivy', commandArgs, { cwd, allowFailure: true });
     const payload = loadTrivyJson(outputPath);
     if (!payload) {
+        (0, echo_failure_js_1.echoFailureOutput)('trivy', result);
         const details = result.stderr.trim() || result.stdout.trim() || 'Trivy scan failed before producing trivy_output.json.';
         return (0, step_utils_js_1.createStepResult)('trivy', 'fail', [
             {
@@ -1921,6 +1926,7 @@ exports.runValidateStep = runValidateStep;
 const tofu_js_1 = __nccwpck_require__(3353);
 const paths_js_1 = __nccwpck_require__(188);
 const step_utils_js_1 = __nccwpck_require__(737);
+const echo_failure_js_1 = __nccwpck_require__(3880);
 function summariseDiagnostics(payload) {
     const summaries = (payload.diagnostics ?? [])
         .map((item) => item.summary?.trim())
@@ -1945,6 +1951,12 @@ async function runValidateStep(config) {
     const fmtFailed = fmtSummary.length > 0 || fmtDiff.exitCode !== 0;
     const validateFailed = validate.exitCode !== 0 || payload.valid !== true;
     const status = fmtFailed || validateFailed ? 'fail' : 'pass';
+    if (fmtFailed) {
+        (0, echo_failure_js_1.echoFailureOutput)('tofu fmt', fmtDiff);
+    }
+    if (validateFailed) {
+        (0, echo_failure_js_1.echoFailureOutput)('tofu validate', validate);
+    }
     const validateSummary = validateFailed ? summariseDiagnostics(payload) : 'Configuration is valid';
     return (0, step_utils_js_1.createStepResult)('validate', status, [
         {
@@ -1965,6 +1977,40 @@ async function runValidateStep(config) {
             validate_summary: validateSummary,
         },
     });
+}
+
+
+/***/ }),
+
+/***/ 3880:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.echoFailureOutput = echoFailureOutput;
+// Print captured stdout/stderr to the runner log when a step fails.
+// The action stores process output in strings so it can render rich
+// summaries, but that hides the real error from the plain CI log until
+// operators click into the step summary UI. Emitting the raw output
+// inline — between visible markers — puts the diagnostic right next to
+// the ##[error] marker where debugging instinct leads first.
+//
+// Both streams are printed because tofu writes the pass/fail summary to
+// stdout but diagnostics (╷│└─ blocks) to stderr; showing only one
+// routinely loses the actual error message.
+function echoFailureOutput(label, result) {
+    const stdout = result.stdout.trim();
+    const stderr = result.stderr.trim();
+    if (!stdout && !stderr)
+        return;
+    if (stdout) {
+        process.stdout.write(`\n----- ${label} stdout -----\n${stdout}\n`);
+    }
+    if (stderr) {
+        process.stdout.write(`\n----- ${label} stderr -----\n${stderr}\n`);
+    }
+    process.stdout.write(`----- end ${label} output -----\n`);
 }
 
 

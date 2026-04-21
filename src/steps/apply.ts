@@ -5,6 +5,7 @@ import type { ParsedConfig, StepResult } from '../types.js';
 import { buildTofuCommonArgs, runTofu } from '../exec/tofu.js';
 import { planArtifactBaseName, resolveWorkdir } from '../util/paths.js';
 import { createStepResult } from './step-utils.js';
+import { echoFailureOutput } from '../util/echo-failure.js';
 
 type ApplyEvent = {
   type?: string;
@@ -154,6 +155,10 @@ export async function runApplyStep(config: ParsedConfig): Promise<StepResult> {
     ['apply', '-input=false', '-auto-approve', '-json', '-concise', ...buildTofuCommonArgs(config), `${planName}.tfplan`],
     { cwd, allowFailure: true },
   );
+
+  if (result.exitCode !== 0) {
+    echoFailureOutput('tofu apply', result);
+  }
 
   const events = parseJsonLines(result.stdout);
   const summary = [...events].reverse().find((event) => event.type === 'change_summary');
