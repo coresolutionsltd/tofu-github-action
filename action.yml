@@ -276,6 +276,11 @@ runs:
       with:
         name: ${{ steps.preflight.outputs.plan_artifact_name }}
         path: ${{ inputs.workdir }}
+      # Silence DEP0005 Buffer() noise — @actions/artifact (v8.0.1,
+      # current latest) still uses the legacy Buffer() constructor.
+      # Upstream bug, not ours; suppress until a fix ships.
+      env:
+        NODE_NO_WARNINGS: "1"
 
     - name: Run Tofu GitHub Action
       id: run
@@ -318,6 +323,8 @@ runs:
         name: ${{ steps.run.outputs.plan_artifact_name }}
         path: ${{ inputs.workdir }}/${{ steps.run.outputs.plan_artifact_name }}*
         if-no-files-found: error
+      env:
+        NODE_NO_WARNINGS: "1"
 
     - name: Upload Plan Artifact With Retention
       if: ${{ steps.preflight.outputs.run_plan == 'true' && inputs['skip-plan-upload'] != 'true' && steps.run.outputs.plan_artifact_name != '' && inputs['artifact-retention-days'] != '' }}
@@ -327,3 +334,5 @@ runs:
         path: ${{ inputs.workdir }}/${{ steps.run.outputs.plan_artifact_name }}*
         if-no-files-found: error
         retention-days: ${{ inputs['artifact-retention-days'] }}
+      env:
+        NODE_NO_WARNINGS: "1"
