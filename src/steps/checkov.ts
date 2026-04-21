@@ -63,16 +63,40 @@ function collectFailedChecks(payload: CheckovJson): Array<CheckovFailedCheck & {
   });
 }
 
+function escapeMd(value: string): string {
+  return value.replace(/\|/g, '\\|').replace(/\n/g, ' ');
+}
+
+// Render as a markdown table for the step summary — operators scan the
+// findings at a glance instead of reading a wall of bullets.
 function formatDetails(payload: CheckovJson): string {
   const checks = collectFailedChecks(payload);
   if (checks.length === 0) {
     return 'Checkov findings available in checkov_output.json.';
   }
 
+  const header = '| Scanner | Severity | Rule | Name | File | Resource |\n|---|---|---|---|---|---|';
+  const rows = checks.map((check) => {
+    const scanner = escapeMd(check.check_type ?? '');
+    const severity = check.severity && check.severity !== 'UNKNOWN' ? escapeMd(check.severity) : '';
+    const rule = escapeMd(check.check_id ?? 'UNKNOWN');
+    const name = escapeMd(check.check_name ?? 'Issue');
+    const file = escapeMd(check.file_path ?? '');
+    const resource = escapeMd(check.resource ?? '');
+    return `| ${scanner} | ${severity} | ${rule} | ${name} | ${file} | ${resource} |`;
+  });
+  return [header, ...rows].join('\n');
+}
+
+// Bullet list for the runner log — pipe characters in a markdown table
+// are noisy in plain text, and the log is where operators live while
+// debugging. Same data, friendlier layout.
+function formatFindingsForLog(payload: CheckovJson): string {
+  const checks = collectFailedChecks(payload);
   return checks
     .map((check) => {
-      const severity = check.severity && check.severity !== 'UNKNOWN' ? `[${check.severity}] ` : '';
       const scanner = check.check_type ? `[${check.check_type}] ` : '';
+      const severity = check.severity && check.severity !== 'UNKNOWN' ? `[${check.severity}] ` : '';
       const location = check.file_path
         ? ` (${check.file_path}${check.resource ? `, ${check.resource}` : ''})`
         : '';
@@ -192,9 +216,9 @@ export async function runCheckovStep(config: ParsedConfig): Promise<StepResult> 
     // operators see the scanner output AND the per-check breakdown
     // inline in the runner log.
     echoFailureOutput('checkov', result);
-    const findings = formatDetails(payload);
-    if (findings && findings !== 'Checkov findings available in checkov_output.json.') {
-      process.stdout.write(`\n----- checkov findings (${issueCount}) -----\n${findings}\n----- end checkov findings -----\n`);
+    const findingsList = formatFindingsForLog(payload);
+    if (findingsList) {
+      process.stdout.write(`\n----- checkov findings (${issueCount}) -----\n${findingsList}\n----- end checkov findings -----\n`);
     }
   }
   const details =
