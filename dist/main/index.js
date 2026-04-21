@@ -1744,6 +1744,16 @@ async function runTestStep(config) {
     }
     const testRun = await (0, tofu_js_1.runTofu)(['test', '-no-color', `-test-directory=${testDir}`, ...(0, tofu_js_1.buildVarArgs)(config, 'test')], { cwd, allowFailure: true });
     const status = testRun.exitCode === 0 ? 'pass' : 'fail';
+    // Echo the captured tofu output to the runner log on failure. The
+    // summary-only rendering made CI debugging require clicking into the
+    // step summary UI; surfacing stdout/stderr inline means the real
+    // error lands next to the ##[error] marker where operators look.
+    if (status === 'fail') {
+        const failureOutput = testRun.stdout.trim() || testRun.stderr.trim();
+        if (failureOutput) {
+            process.stdout.write(`\n----- tofu test output -----\n${failureOutput}\n----- end tofu test output -----\n`);
+        }
+    }
     const details = status === 'pass'
         ? `All OpenTofu tests passed in \`${testDir}\`.`
         : `OpenTofu tests failed in \`${testDir}\`.`;
