@@ -7,51 +7,64 @@ import { resolveWorkdir } from '../util/paths.js';
 import { createStepResult } from './step-utils.js';
 import { echoFailureOutput } from '../util/echo-failure.js';
 
-type CheckovJson = {
+type CheckovFailedCheck = {
+  check_id?: string;
+  check_name?: string;
+  severity?: string;
+  file_path?: string;
+  resource?: string;
+};
+
+// Single checkov check_type result (one scanner: terraform, secrets,
+// github_actions, etc.). The top-level JSON may either be this shape or
+// an array of these when multiple scanners ran.
+type CheckovResult = {
+  check_type?: string;
   summary?: {
     failed?: number;
     failed_checks?: number;
     failed_count?: number;
   };
   results?: {
-    failed_checks?: Array<{
-      check_id?: string;
-      check_name?: string;
-      severity?: string;
-      file_path?: string;
-      resource?: string;
-    }>;
+    failed_checks?: CheckovFailedCheck[];
   };
-  failed_checks?: Array<{
-    check_id?: string;
-    check_name?: string;
-    severity?: string;
-    file_path?: string;
-    resource?: string;
-  }>;
+  failed_checks?: CheckovFailedCheck[];
 };
 
-function countFailures(payload: CheckovJson): number {
-  if (payload.summary?.failed !== undefined) {
-    return payload.summary.failed;
-  }
-  if (payload.summary?.failed_checks !== undefined) {
-    return payload.summary.failed_checks;
-  }
-  if (payload.summary?.failed_count !== undefined) {
-    return payload.summary.failed_count;
-  }
-  if (payload.results?.failed_checks) {
-    return payload.results.failed_checks.length;
-  }
-  if (payload.failed_checks) {
-    return payload.failed_checks.length;
-  }
+type CheckovJson = CheckovResult | CheckovResult[];
+
+function normaliseResults(payload: CheckovJson): CheckovResult[] {
+  return Array.isArray(payload) ? payload : [payload];
+}
+
+function summaryCount(summary: CheckovResult['summary']): number | undefined {
+  if (summary?.failed !== undefined) return summary.failed;
+  if (summary?.failed_checks !== undefined) return summary.failed_checks;
+  if (summary?.failed_count !== undefined) return summary.failed_count;
+  return undefined;
+}
+
+function resultFailures(result: CheckovResult): number {
+  const fromSummary = summaryCount(result.summary);
+  if (fromSummary !== undefined) return fromSummary;
+  if (result.results?.failed_checks) return result.results.failed_checks.length;
+  if (result.failed_checks) return result.failed_checks.length;
   return 0;
 }
 
+function countFailures(payload: CheckovJson): number {
+  return normaliseResults(payload).reduce((total, r) => total + resultFailures(r), 0);
+}
+
+function collectFailedChecks(payload: CheckovJson): Array<CheckovFailedCheck & { check_type?: string }> {
+  return normaliseResults(payload).flatMap((result) => {
+    const checks = result.results?.failed_checks ?? result.failed_checks ?? [];
+    return checks.map((check) => ({ ...check, check_type: result.check_type }));
+  });
+}
+
 function formatDetails(payload: CheckovJson): string {
-  const checks = payload.results?.failed_checks ?? payload.failed_checks ?? [];
+  const checks = collectFailedChecks(payload);
   if (checks.length === 0) {
     return 'Checkov findings available in checkov_output.json.';
   }
@@ -59,10 +72,11 @@ function formatDetails(payload: CheckovJson): string {
   return checks
     .map((check) => {
       const severity = check.severity && check.severity !== 'UNKNOWN' ? `[${check.severity}] ` : '';
+      const scanner = check.check_type ? `[${check.check_type}] ` : '';
       const location = check.file_path
         ? ` (${check.file_path}${check.resource ? `, ${check.resource}` : ''})`
         : '';
-      return `- ${severity}${check.check_id ?? 'UNKNOWN'}: ${check.check_name ?? 'Issue'}${location}`;
+      return `- ${scanner}${severity}${check.check_id ?? 'UNKNOWN'}: ${check.check_name ?? 'Issue'}${location}`;
     })
     .join('\n');
 }
@@ -173,7 +187,15 @@ export async function runCheckovStep(config: ParsedConfig): Promise<StepResult> 
   const issueCount = countFailures(payload);
   const status = result.exitCode === 0 ? 'pass' : 'fail';
   if (status === 'fail') {
+    // stderr of checkov is usually just the external-module warning; the
+    // actionable findings live inside the JSON payload. Echo both so
+    // operators see the scanner output AND the per-check breakdown
+    // inline in the runner log.
     echoFailureOutput('checkov', result);
+    const findings = formatDetails(payload);
+    if (findings && findings !== 'Checkov findings available in checkov_output.json.') {
+      process.stdout.write(`\n----- checkov findings (${issueCount}) -----\n${findings}\n----- end checkov findings -----\n`);
+    }
   }
   const details =
     status === 'pass'

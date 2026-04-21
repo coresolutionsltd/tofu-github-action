@@ -1294,36 +1294,50 @@ const scanners_js_1 = __nccwpck_require__(6270);
 const paths_js_1 = __nccwpck_require__(188);
 const step_utils_js_1 = __nccwpck_require__(737);
 const echo_failure_js_1 = __nccwpck_require__(3880);
-function countFailures(payload) {
-    if (payload.summary?.failed !== undefined) {
-        return payload.summary.failed;
-    }
-    if (payload.summary?.failed_checks !== undefined) {
-        return payload.summary.failed_checks;
-    }
-    if (payload.summary?.failed_count !== undefined) {
-        return payload.summary.failed_count;
-    }
-    if (payload.results?.failed_checks) {
-        return payload.results.failed_checks.length;
-    }
-    if (payload.failed_checks) {
-        return payload.failed_checks.length;
-    }
+function normaliseResults(payload) {
+    return Array.isArray(payload) ? payload : [payload];
+}
+function summaryCount(summary) {
+    if (summary?.failed !== undefined)
+        return summary.failed;
+    if (summary?.failed_checks !== undefined)
+        return summary.failed_checks;
+    if (summary?.failed_count !== undefined)
+        return summary.failed_count;
+    return undefined;
+}
+function resultFailures(result) {
+    const fromSummary = summaryCount(result.summary);
+    if (fromSummary !== undefined)
+        return fromSummary;
+    if (result.results?.failed_checks)
+        return result.results.failed_checks.length;
+    if (result.failed_checks)
+        return result.failed_checks.length;
     return 0;
 }
+function countFailures(payload) {
+    return normaliseResults(payload).reduce((total, r) => total + resultFailures(r), 0);
+}
+function collectFailedChecks(payload) {
+    return normaliseResults(payload).flatMap((result) => {
+        const checks = result.results?.failed_checks ?? result.failed_checks ?? [];
+        return checks.map((check) => ({ ...check, check_type: result.check_type }));
+    });
+}
 function formatDetails(payload) {
-    const checks = payload.results?.failed_checks ?? payload.failed_checks ?? [];
+    const checks = collectFailedChecks(payload);
     if (checks.length === 0) {
         return 'Checkov findings available in checkov_output.json.';
     }
     return checks
         .map((check) => {
         const severity = check.severity && check.severity !== 'UNKNOWN' ? `[${check.severity}] ` : '';
+        const scanner = check.check_type ? `[${check.check_type}] ` : '';
         const location = check.file_path
             ? ` (${check.file_path}${check.resource ? `, ${check.resource}` : ''})`
             : '';
-        return `- ${severity}${check.check_id ?? 'UNKNOWN'}: ${check.check_name ?? 'Issue'}${location}`;
+        return `- ${scanner}${severity}${check.check_id ?? 'UNKNOWN'}: ${check.check_name ?? 'Issue'}${location}`;
     })
         .join('\n');
 }
@@ -1410,7 +1424,15 @@ async function runCheckovStep(config) {
     const issueCount = countFailures(payload);
     const status = result.exitCode === 0 ? 'pass' : 'fail';
     if (status === 'fail') {
+        // stderr of checkov is usually just the external-module warning; the
+        // actionable findings live inside the JSON payload. Echo both so
+        // operators see the scanner output AND the per-check breakdown
+        // inline in the runner log.
         (0, echo_failure_js_1.echoFailureOutput)('checkov', result);
+        const findings = formatDetails(payload);
+        if (findings && findings !== 'Checkov findings available in checkov_output.json.') {
+            process.stdout.write(`\n----- checkov findings (${issueCount}) -----\n${findings}\n----- end checkov findings -----\n`);
+        }
     }
     const details = status === 'pass'
         ? `${issueCount} issue(s) found.`
