@@ -227,7 +227,15 @@ function buildPlanArgs(config) {
     return args;
 }
 async function runTofu(args, options = {}) {
-    return await (0, process_js_1.execFileSafe)('tofu', args, options);
+    // Strip GITHUB_TOKEN from the tofu subprocess env. Our action's JS
+    // code reads it for PR comment sync (sticky comments, permission
+    // checks), but when tofu inherits it, any transitively-imported
+    // integrations/github provider — e.g. kube-hetzner's provider block —
+    // probes /user at init and 403s on the runner's default integration
+    // token. Callers that genuinely need tofu-side GitHub access should
+    // set a module-level `github_token` tfvar or their own env var.
+    const env = { ...process.env, ...options.env, GITHUB_TOKEN: '' };
+    return await (0, process_js_1.execFileSafe)('tofu', args, { ...options, env });
 }
 
 
