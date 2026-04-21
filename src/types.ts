@@ -44,11 +44,17 @@ export type SummaryRow = {
   details: string;
 };
 
+// 'text' → renderer wraps in a fenced code block (right for diff-like
+// tofu plan/apply/test output). 'markdown' → renderer emits verbatim
+// (for structured scanner findings where a table reads cleanly).
+export type DetailsFormat = 'text' | 'markdown';
+
 export type StepResult = {
   name: TofuStep;
   status: StepStatus;
   summaryRows: SummaryRow[];
   details?: string;
+  detailsFormat?: DetailsFormat;
   metrics?: Record<string, number | boolean | string>;
   outputs?: Record<string, string>;
 };

@@ -240,6 +240,7 @@ export async function runCheckovStep(config: ParsedConfig): Promise<StepResult> 
     ],
     {
       details: issueCount > 0 ? formatDetails(payload) : undefined,
+      detailsFormat: 'markdown',
       outputs: {
         checkov_ran: 'true',
         checkov_skipped: 'false',

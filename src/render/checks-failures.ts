@@ -13,7 +13,12 @@ function renderFailureBlock(step: StepResult): string {
     body.length > MAX_FAILURE_BODY_LENGTH
       ? `${body.slice(0, MAX_FAILURE_BODY_LENGTH)}\n… output truncated (${body.length - MAX_FAILURE_BODY_LENGTH} more chars)`
       : body;
-  return `<details><summary>${label} — failure output</summary>\n\n\`\`\`\n${truncated}\n\`\`\`\n\n</details>`;
+  // Markdown-format steps (scanners that emit a findings table) are
+  // rendered verbatim. Text-format steps (tofu plan/apply/test output,
+  // which is diff-like) get a fenced code block to preserve whitespace.
+  const inner =
+    step.detailsFormat === 'markdown' ? truncated : `\`\`\`\n${truncated}\n\`\`\``;
+  return `<details><summary>${label} — failure output</summary>\n\n${inner}\n\n</details>`;
 }
 
 export function renderCheckFailureBlocks(steps: StepResult[]): string {

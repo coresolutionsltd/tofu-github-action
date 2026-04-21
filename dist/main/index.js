@@ -974,7 +974,11 @@ function renderFailureBlock(step) {
     const truncated = body.length > MAX_FAILURE_BODY_LENGTH
         ? `${body.slice(0, MAX_FAILURE_BODY_LENGTH)}\n… output truncated (${body.length - MAX_FAILURE_BODY_LENGTH} more chars)`
         : body;
-    return `<details><summary>${label} — failure output</summary>\n\n\`\`\`\n${truncated}\n\`\`\`\n\n</details>`;
+    // Markdown-format steps (scanners that emit a findings table) are
+    // rendered verbatim. Text-format steps (tofu plan/apply/test output,
+    // which is diff-like) get a fenced code block to preserve whitespace.
+    const inner = step.detailsFormat === 'markdown' ? truncated : `\`\`\`\n${truncated}\n\`\`\``;
+    return `<details><summary>${label} — failure output</summary>\n\n${inner}\n\n</details>`;
 }
 function renderCheckFailureBlocks(steps) {
     return steps
@@ -1469,6 +1473,7 @@ async function runCheckovStep(config) {
         },
     ], {
         details: issueCount > 0 ? formatDetails(payload) : undefined,
+        detailsFormat: 'markdown',
         outputs: {
             checkov_ran: 'true',
             checkov_skipped: 'false',
