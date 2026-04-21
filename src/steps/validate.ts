@@ -32,7 +32,7 @@ function summariseDiagnostics(payload: ValidateJson): string {
 
 export async function runValidateStep(config: ParsedConfig): Promise<StepResult> {
   const cwd = resolveWorkdir(config);
-  const fmtDiff = await runTofu(['fmt', '-check', '-diff'], { cwd, allowFailure: true });
+  const fmtDiff = await runTofu(['fmt', '-check', '-diff', '-no-color'], { cwd, allowFailure: true });
   const validate = await runTofu(['validate', ...buildVarArgs(config), '-json'], { cwd, allowFailure: true });
   const payload = JSON.parse(validate.stdout || '{}') as ValidateJson;
 

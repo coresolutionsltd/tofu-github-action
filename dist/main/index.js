@@ -1550,7 +1550,7 @@ async function runPlanStep(config) {
     const tfplanPath = `${cwd}/${planName}.tfplan`;
     const gzPath = `${tfplanPath}.gz`;
     const checksumPath = `${gzPath}.sha256`;
-    const plan = await (0, tofu_js_1.runTofu)(['plan', ...(0, tofu_js_1.buildVarArgs)(config), ...(0, tofu_js_1.buildPlanArgs)(config), '-input=false', '-out', `${planName}.tfplan`], { cwd, allowFailure: true });
+    const plan = await (0, tofu_js_1.runTofu)(['plan', '-no-color', ...(0, tofu_js_1.buildVarArgs)(config), ...(0, tofu_js_1.buildPlanArgs)(config), '-input=false', '-out', `${planName}.tfplan`], { cwd, allowFailure: true });
     if (plan.exitCode !== 0) {
         return (0, step_utils_js_1.createStepResult)('plan', 'fail', [
             {
@@ -1742,7 +1742,7 @@ async function runTestStep(config) {
             },
         });
     }
-    const testRun = await (0, tofu_js_1.runTofu)(['test', `-test-directory=${testDir}`, ...(0, tofu_js_1.buildVarArgs)(config, 'test')], { cwd, allowFailure: true });
+    const testRun = await (0, tofu_js_1.runTofu)(['test', '-no-color', `-test-directory=${testDir}`, ...(0, tofu_js_1.buildVarArgs)(config, 'test')], { cwd, allowFailure: true });
     const status = testRun.exitCode === 0 ? 'pass' : 'fail';
     const details = status === 'pass'
         ? `All OpenTofu tests passed in \`${testDir}\`.`
@@ -1918,7 +1918,7 @@ function summariseDiagnostics(payload) {
 }
 async function runValidateStep(config) {
     const cwd = (0, paths_js_1.resolveWorkdir)(config);
-    const fmtDiff = await (0, tofu_js_1.runTofu)(['fmt', '-check', '-diff'], { cwd, allowFailure: true });
+    const fmtDiff = await (0, tofu_js_1.runTofu)(['fmt', '-check', '-diff', '-no-color'], { cwd, allowFailure: true });
     const validate = await (0, tofu_js_1.runTofu)(['validate', ...(0, tofu_js_1.buildVarArgs)(config), '-json'], { cwd, allowFailure: true });
     const payload = JSON.parse(validate.stdout || '{}');
     const fmtSummary = fmtDiff.stdout.trim().split('\n').map((line) => line.trim()).filter(Boolean).join(' ');
@@ -2081,10 +2081,15 @@ function registerSecret(value) {
     registered.add(value);
     core.setSecret(value);
 }
+// Strip ANSI CSI escape sequences (\x1b[...m) before rendering to
+// markdown. GitHub's step summary / PR comment renderer does not
+// interpret ANSI, so leaving them in produces replacement-character
+// noise like `�[31m` in the output.
+const ANSI_CSI_PATTERN = /\x1b\[[0-9;]*m/g;
 function redactText(text) {
     if (!text)
         return text;
-    let result = text;
+    let result = text.replace(ANSI_CSI_PATTERN, '');
     for (const secret of registered) {
         if (result.includes(secret)) {
             result = result.split(secret).join('***');

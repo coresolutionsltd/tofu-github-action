@@ -26,7 +26,7 @@ export async function runPlanStep(config: ParsedConfig): Promise<StepResult> {
   const checksumPath = `${gzPath}.sha256`;
 
   const plan = await runTofu(
-    ['plan', ...buildVarArgs(config), ...buildPlanArgs(config), '-input=false', '-out', `${planName}.tfplan`],
+    ['plan', '-no-color', ...buildVarArgs(config), ...buildPlanArgs(config), '-input=false', '-out', `${planName}.tfplan`],
     { cwd, allowFailure: true },
   );
 

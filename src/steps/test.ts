@@ -88,7 +88,7 @@ export async function runTestStep(config: ParsedConfig): Promise<StepResult> {
   }
 
   const testRun = await runTofu(
-    ['test', `-test-directory=${testDir}`, ...buildVarArgs(config, 'test')],
+    ['test', '-no-color', `-test-directory=${testDir}`, ...buildVarArgs(config, 'test')],
     { cwd, allowFailure: true },
   );
   const status = testRun.exitCode === 0 ? 'pass' : 'fail';
