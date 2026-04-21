@@ -227,7 +227,12 @@ runs:
         INPUT_COMMENT_IDENTIFIER: ${{ inputs['comment-identifier'] }}
 
     - name: Setup OpenTofu
-      if: ${{ steps.preflight.outputs.run_validate == 'true' || steps.preflight.outputs.run_plan == 'true' || steps.preflight.outputs.run_apply == 'true' || steps.preflight.outputs.run_test == 'true' }}
+      # Install tofu whenever any step that needs the runtime or the
+      # module cache selected runs. Checkov/Trivy need `tofu init` to
+      # populate .terraform/modules/ so external `module "x"` sources
+      # resolve; without it they emit a misleading "failed to download
+      # module" warning and exit non-zero.
+      if: ${{ steps.preflight.outputs.run_validate == 'true' || steps.preflight.outputs.run_plan == 'true' || steps.preflight.outputs.run_apply == 'true' || steps.preflight.outputs.run_test == 'true' || steps.preflight.outputs.run_checkov == 'true' || steps.preflight.outputs.run_trivy == 'true' }}
       shell: bash
       run: bash "$GITHUB_ACTION_PATH/scripts/install-opentofu.sh"
       env:
