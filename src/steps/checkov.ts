@@ -172,6 +172,9 @@ export async function runCheckovStep(config: ParsedConfig): Promise<StepResult> 
 
   const issueCount = countFailures(payload);
   const status = result.exitCode === 0 ? 'pass' : 'fail';
+  if (status === 'fail') {
+    echoFailureOutput('checkov', result);
+  }
   const details =
     status === 'pass'
       ? `${issueCount} issue(s) found.`

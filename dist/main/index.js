@@ -1401,6 +1401,9 @@ async function runCheckovStep(config) {
     }
     const issueCount = countFailures(payload);
     const status = result.exitCode === 0 ? 'pass' : 'fail';
+    if (status === 'fail') {
+        (0, echo_failure_js_1.echoFailureOutput)('checkov', result);
+    }
     const details = status === 'pass'
         ? `${issueCount} issue(s) found.`
         : issueCount > 0
@@ -1898,6 +1901,9 @@ async function runTrivyStep(config) {
     }
     const issueCount = countFailures(payload);
     const status = result.exitCode === 0 ? 'pass' : 'fail';
+    if (status === 'fail') {
+        (0, echo_failure_js_1.echoFailureOutput)('trivy', result);
+    }
     const details = status === 'pass'
         ? `${issueCount} issue(s) found.`
         : issueCount > 0

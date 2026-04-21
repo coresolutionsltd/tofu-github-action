@@ -132,6 +132,9 @@ export async function runTrivyStep(config: ParsedConfig): Promise<StepResult> {
 
   const issueCount = countFailures(payload);
   const status = result.exitCode === 0 ? 'pass' : 'fail';
+  if (status === 'fail') {
+    echoFailureOutput('trivy', result);
+  }
   const details =
     status === 'pass'
       ? `${issueCount} issue(s) found.`
