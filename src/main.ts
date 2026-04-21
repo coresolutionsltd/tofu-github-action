@@ -165,7 +165,15 @@ export async function executeSelectedSteps(config: ParsedConfig): Promise<StepRe
   const selected = new Set(config.steps);
   const orderedSteps = EXECUTION_ORDER.filter((step) => selected.has(step));
 
-  if (orderedSteps.some((step) => ['validate', 'plan', 'apply', 'test'].includes(step))) {
+  // Init covers validate/plan/apply/test and also the scanners. Checkov
+  // and Trivy reference external modules declared in the root config
+  // (e.g. a downstream `module "x" { source = "org/x/provider" }`);
+  // without .terraform/modules/ on disk they fall back to signature
+  // introspection, fail to resolve the source, and exit non-zero with a
+  // misleading "failed to download module" warning. A backend-less init
+  // populates the module cache cheaply and is a no-op when the steps
+  // don't need it.
+  if (orderedSteps.some((step) => ['validate', 'plan', 'apply', 'test', 'checkov', 'trivy'].includes(step))) {
     await runInit(config);
   }
 
