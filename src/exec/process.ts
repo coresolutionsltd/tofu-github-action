@@ -12,6 +12,10 @@ export type ExecOptions = {
   cwd?: string;
   env?: NodeJS.ProcessEnv;
   allowFailure?: boolean;
+  // Optional per-line callback invoked as stdout data arrives. Lets callers
+  // stream progress (e.g. humanized tofu -json events to the runner log)
+  // while still receiving the full buffered stdout in the ExecResult.
+  onStdoutLine?: (line: string) => void;
 };
 
 export async function execFileSafe(command: string, args: string[] = [], options: ExecOptions = {}): Promise<ExecResult> {
@@ -25,9 +29,21 @@ export async function execFileSafe(command: string, args: string[] = [], options
 
     let stdout = '';
     let stderr = '';
+    let stdoutBuffer = '';
 
     child.stdout.on('data', (chunk: Buffer | string) => {
-      stdout += chunk.toString();
+      const text = chunk.toString();
+      stdout += text;
+
+      if (options.onStdoutLine) {
+        stdoutBuffer += text;
+        let newlineIdx: number;
+        while ((newlineIdx = stdoutBuffer.indexOf('\n')) !== -1) {
+          const line = stdoutBuffer.slice(0, newlineIdx);
+          stdoutBuffer = stdoutBuffer.slice(newlineIdx + 1);
+          options.onStdoutLine(line);
+        }
+      }
     });
 
     child.stderr.on('data', (chunk: Buffer | string) => {
@@ -36,6 +52,12 @@ export async function execFileSafe(command: string, args: string[] = [], options
 
     child.on('error', reject);
     child.on('close', (code) => {
+      // Flush any trailing line without a newline.
+      if (options.onStdoutLine && stdoutBuffer.length > 0) {
+        options.onStdoutLine(stdoutBuffer);
+        stdoutBuffer = '';
+      }
+
       const result: ExecResult = {
         exitCode: code ?? 1,
         stdout,

@@ -133,14 +133,30 @@ async function execFileSafe(command, args = [], options = {}) {
         });
         let stdout = '';
         let stderr = '';
+        let stdoutBuffer = '';
         child.stdout.on('data', (chunk) => {
-            stdout += chunk.toString();
+            const text = chunk.toString();
+            stdout += text;
+            if (options.onStdoutLine) {
+                stdoutBuffer += text;
+                let newlineIdx;
+                while ((newlineIdx = stdoutBuffer.indexOf('\n')) !== -1) {
+                    const line = stdoutBuffer.slice(0, newlineIdx);
+                    stdoutBuffer = stdoutBuffer.slice(newlineIdx + 1);
+                    options.onStdoutLine(line);
+                }
+            }
         });
         child.stderr.on('data', (chunk) => {
             stderr += chunk.toString();
         });
         child.on('error', reject);
         child.on('close', (code) => {
+            // Flush any trailing line without a newline.
+            if (options.onStdoutLine && stdoutBuffer.length > 0) {
+                options.onStdoutLine(stdoutBuffer);
+                stdoutBuffer = '';
+            }
             const result = {
                 exitCode: code ?? 1,
                 stdout,
@@ -1132,67 +1148,50 @@ const tofu_js_1 = __nccwpck_require__(3353);
 const paths_js_1 = __nccwpck_require__(188);
 const step_utils_js_1 = __nccwpck_require__(737);
 const echo_failure_js_1 = __nccwpck_require__(3880);
-function parseJsonLines(stream) {
-    return stream
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .flatMap((line) => {
-        try {
-            return [JSON.parse(line)];
-        }
-        catch {
-            return [];
-        }
-    });
-}
-function renderResourceChanges(events) {
-    const seen = new Set();
-    const changes = [];
-    for (const event of events) {
-        const resourceType = event.hook?.resource?.resource_type;
-        const resourceName = event.hook?.resource?.resource_name;
-        const action = event.hook?.action;
-        if (!resourceType || !resourceName || !action) {
-            continue;
-        }
-        const actionLabel = action === 'create' ? 'created' :
-            action === 'update' ? 'updated' :
-                action === 'delete' ? 'destroyed' :
-                    action;
-        const line = `- ${resourceType}.${resourceName} (${actionLabel})`;
-        if (!seen.has(line)) {
-            seen.add(line);
-            changes.push(line);
-        }
+// Match the native `Apply complete!` summary line emitted by tofu at the
+// end of a successful (or even partial) apply. We tolerate the variant
+// with just two counters (no "imported") since older tofu releases don't
+// print that token. Returns 0 for every counter if the line is absent.
+const APPLY_SUMMARY_REGEX = /Apply complete! Resources:\s+(\d+)\s+added,\s+(\d+)\s+changed,\s+(\d+)\s+destroyed(?:,\s+(\d+)\s+imported)?/;
+function parseApplySummary(stdout) {
+    const match = stdout.match(APPLY_SUMMARY_REGEX);
+    if (!match) {
+        return { added: 0, changed: 0, destroyed: 0, imported: 0 };
     }
-    return changes.length > 0 ? changes.join('\n') : 'No changes';
+    return {
+        added: Number(match[1]),
+        changed: Number(match[2]),
+        destroyed: Number(match[3]),
+        imported: match[4] ? Number(match[4]) : 0,
+    };
 }
-function renderOutputs(events) {
-    const outputEvent = [...events].reverse().find((event) => event.type === 'outputs' && event.outputs);
-    if (!outputEvent?.outputs) {
-        return 'No outputs';
+async function fetchOutputs(cwd) {
+    const result = await (0, tofu_js_1.runTofu)(['output', '-json'], { cwd, allowFailure: true });
+    if (result.exitCode !== 0) {
+        return {};
     }
-    const lines = Object.entries(outputEvent.outputs).map(([key, value]) => {
+    try {
+        return JSON.parse(result.stdout);
+    }
+    catch {
+        return {};
+    }
+}
+function renderOutputs(outputs) {
+    const lines = Object.entries(outputs).map(([key, value]) => {
         if (value.sensitive) {
             return `- **${key}**: <sensitive>`;
         }
-        const rendered = typeof value.value === 'string'
-            ? value.value
-            : JSON.stringify(value.value);
+        const rendered = typeof value.value === 'string' ? value.value : JSON.stringify(value.value);
         return `- **${key}**: ${rendered}`;
     });
     return lines.length > 0 ? lines.join('\n') : 'No outputs';
 }
-function buildDetailBody(summaryMode, events) {
+function buildDetailBody(summaryMode, outputs) {
     if (summaryMode !== 'full') {
         return undefined;
     }
-    return `### Resource Changes
-${renderResourceChanges(events)}
-
-### Outputs
-${renderOutputs(events)}`;
+    return `### Outputs\n${renderOutputs(outputs)}\n\n_Per-resource apply lines are shown inline in the job log._`;
 }
 async function runApplyStep(config) {
     const cwd = (0, paths_js_1.resolveWorkdir)(config);
@@ -1234,19 +1233,27 @@ async function runApplyStep(config) {
     if (!(0, node_fs_1.existsSync)(tfplanPath)) {
         (0, node_fs_1.writeFileSync)(tfplanPath, (0, node_zlib_1.gunzipSync)((0, node_fs_1.readFileSync)(gzPath)));
     }
-    const result = await (0, tofu_js_1.runTofu)(['apply', '-input=false', '-auto-approve', '-json', '-concise', ...(0, tofu_js_1.buildTofuCommonArgs)(config), `${planName}.tfplan`], { cwd, allowFailure: true });
+    // Use tofu's native human-readable apply output (no -json) and stream it
+    // line-by-line to the runner log so operators see the same output they'd
+    // see locally. -no-color keeps ANSI sequences out of the GitHub log view,
+    // which renders them as literal escape codes rather than colors.
+    const result = await (0, tofu_js_1.runTofu)(['apply', '-input=false', '-auto-approve', '-no-color', ...(0, tofu_js_1.buildTofuCommonArgs)(config), `${planName}.tfplan`], {
+        cwd,
+        allowFailure: true,
+        onStdoutLine: (line) => {
+            process.stdout.write(`${line}\n`);
+        },
+    });
     if (result.exitCode !== 0) {
         (0, echo_failure_js_1.echoFailureOutput)('tofu apply', result);
     }
-    const events = parseJsonLines(result.stdout);
-    const summary = [...events].reverse().find((event) => event.type === 'change_summary');
-    const added = summary?.changes?.add ?? 0;
-    const changed = summary?.changes?.change ?? 0;
-    const destroyed = summary?.changes?.remove ?? 0;
-    const imported = summary?.changes?.import ?? 0;
-    const forgotten = summary?.changes?.forget ?? 0;
+    const { added, changed, destroyed, imported } = parseApplySummary(result.stdout);
     const hasChanged = added > 0 || changed > 0 || destroyed > 0;
     const status = result.exitCode === 0 ? 'pass' : 'fail';
+    // Fetch outputs via a separate command — dropping -json from apply means
+    // we lose the structured outputs stream, but `tofu output -json` reads
+    // the refreshed state and gives us the same data cleanly.
+    const outputs = status === 'pass' ? await fetchOutputs(cwd) : {};
     if ((0, node_fs_1.existsSync)(tfplanPath)) {
         (0, node_fs_1.unlinkSync)(tfplanPath);
     }
@@ -1259,13 +1266,13 @@ async function runApplyStep(config) {
                 : result.stderr.trim() || 'Apply failed before reporting a change summary.',
         },
     ], {
-        details: buildDetailBody(config.summaryMode, events),
+        details: buildDetailBody(config.summaryMode, outputs),
         metrics: {
             added,
             changed,
             destroyed,
             imported,
-            forgotten,
+            forgotten: 0,
             has_changed: hasChanged,
         },
         outputs: {
@@ -1273,7 +1280,7 @@ async function runApplyStep(config) {
             changed: String(changed),
             destroyed: String(destroyed),
             imported: String(imported),
-            forgotten: String(forgotten),
+            forgotten: '0',
             has_changed: hasChanged ? 'true' : 'false',
         },
     });

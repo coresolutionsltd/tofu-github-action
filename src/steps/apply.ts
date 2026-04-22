@@ -7,103 +7,61 @@ import { planArtifactBaseName, resolveWorkdir } from '../util/paths.js';
 import { createStepResult } from './step-utils.js';
 import { echoFailureOutput } from '../util/echo-failure.js';
 
-type ApplyEvent = {
-  type?: string;
-  changes?: {
-    add?: number;
-    change?: number;
-    remove?: number;
-    import?: number;
-    forget?: number;
-  };
-  hook?: {
-    action?: string;
-    resource?: {
-      resource_type?: string;
-      resource_name?: string;
-    };
-  };
-  outputs?: Record<
-    string,
-    {
-      sensitive?: boolean;
-      value?: unknown;
-    }
-  >;
-};
+// Match the native `Apply complete!` summary line emitted by tofu at the
+// end of a successful (or even partial) apply. We tolerate the variant
+// with just two counters (no "imported") since older tofu releases don't
+// print that token. Returns 0 for every counter if the line is absent.
+const APPLY_SUMMARY_REGEX = /Apply complete! Resources:\s+(\d+)\s+added,\s+(\d+)\s+changed,\s+(\d+)\s+destroyed(?:,\s+(\d+)\s+imported)?/;
 
-function parseJsonLines(stream: string): ApplyEvent[] {
-  return stream
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .flatMap((line) => {
-      try {
-        return [JSON.parse(line) as ApplyEvent];
-      } catch {
-        return [];
-      }
-    });
+function parseApplySummary(stdout: string): {
+  added: number;
+  changed: number;
+  destroyed: number;
+  imported: number;
+} {
+  const match = stdout.match(APPLY_SUMMARY_REGEX);
+  if (!match) {
+    return { added: 0, changed: 0, destroyed: 0, imported: 0 };
+  }
+  return {
+    added: Number(match[1]),
+    changed: Number(match[2]),
+    destroyed: Number(match[3]),
+    imported: match[4] ? Number(match[4]) : 0,
+  };
 }
 
-function renderResourceChanges(events: ApplyEvent[]): string {
-  const seen = new Set<string>();
-  const changes: string[] = [];
+type TofuOutputs = Record<string, { sensitive?: boolean; type?: unknown; value?: unknown }>;
 
-  for (const event of events) {
-    const resourceType = event.hook?.resource?.resource_type;
-    const resourceName = event.hook?.resource?.resource_name;
-    const action = event.hook?.action;
-    if (!resourceType || !resourceName || !action) {
-      continue;
-    }
-
-    const actionLabel =
-      action === 'create' ? 'created' :
-      action === 'update' ? 'updated' :
-      action === 'delete' ? 'destroyed' :
-      action;
-    const line = `- ${resourceType}.${resourceName} (${actionLabel})`;
-    if (!seen.has(line)) {
-      seen.add(line);
-      changes.push(line);
-    }
+async function fetchOutputs(cwd: string): Promise<TofuOutputs> {
+  const result = await runTofu(['output', '-json'], { cwd, allowFailure: true });
+  if (result.exitCode !== 0) {
+    return {};
   }
-
-  return changes.length > 0 ? changes.join('\n') : 'No changes';
+  try {
+    return JSON.parse(result.stdout) as TofuOutputs;
+  } catch {
+    return {};
+  }
 }
 
-function renderOutputs(events: ApplyEvent[]): string {
-  const outputEvent = [...events].reverse().find((event) => event.type === 'outputs' && event.outputs);
-  if (!outputEvent?.outputs) {
-    return 'No outputs';
-  }
-
-  const lines = Object.entries(outputEvent.outputs).map(([key, value]) => {
+function renderOutputs(outputs: TofuOutputs): string {
+  const lines = Object.entries(outputs).map(([key, value]) => {
     if (value.sensitive) {
       return `- **${key}**: <sensitive>`;
     }
-
     const rendered =
-      typeof value.value === 'string'
-        ? value.value
-        : JSON.stringify(value.value);
+      typeof value.value === 'string' ? value.value : JSON.stringify(value.value);
     return `- **${key}**: ${rendered}`;
   });
-
   return lines.length > 0 ? lines.join('\n') : 'No outputs';
 }
 
-function buildDetailBody(summaryMode: ParsedConfig['summaryMode'], events: ApplyEvent[]): string | undefined {
+function buildDetailBody(summaryMode: ParsedConfig['summaryMode'], outputs: TofuOutputs): string | undefined {
   if (summaryMode !== 'full') {
     return undefined;
   }
-
-  return `### Resource Changes
-${renderResourceChanges(events)}
-
-### Outputs
-${renderOutputs(events)}`;
+  return `### Outputs\n${renderOutputs(outputs)}\n\n_Per-resource apply lines are shown inline in the job log._`;
 }
 
 export async function runApplyStep(config: ParsedConfig): Promise<StepResult> {
@@ -151,24 +109,33 @@ export async function runApplyStep(config: ParsedConfig): Promise<StepResult> {
     writeFileSync(tfplanPath, gunzipSync(readFileSync(gzPath)));
   }
 
+  // Use tofu's native human-readable apply output (no -json) and stream it
+  // line-by-line to the runner log so operators see the same output they'd
+  // see locally. -no-color keeps ANSI sequences out of the GitHub log view,
+  // which renders them as literal escape codes rather than colors.
   const result = await runTofu(
-    ['apply', '-input=false', '-auto-approve', '-json', '-concise', ...buildTofuCommonArgs(config), `${planName}.tfplan`],
-    { cwd, allowFailure: true },
+    ['apply', '-input=false', '-auto-approve', '-no-color', ...buildTofuCommonArgs(config), `${planName}.tfplan`],
+    {
+      cwd,
+      allowFailure: true,
+      onStdoutLine: (line) => {
+        process.stdout.write(`${line}\n`);
+      },
+    },
   );
 
   if (result.exitCode !== 0) {
     echoFailureOutput('tofu apply', result);
   }
 
-  const events = parseJsonLines(result.stdout);
-  const summary = [...events].reverse().find((event) => event.type === 'change_summary');
-  const added = summary?.changes?.add ?? 0;
-  const changed = summary?.changes?.change ?? 0;
-  const destroyed = summary?.changes?.remove ?? 0;
-  const imported = summary?.changes?.import ?? 0;
-  const forgotten = summary?.changes?.forget ?? 0;
+  const { added, changed, destroyed, imported } = parseApplySummary(result.stdout);
   const hasChanged = added > 0 || changed > 0 || destroyed > 0;
   const status = result.exitCode === 0 ? 'pass' : 'fail';
+
+  // Fetch outputs via a separate command — dropping -json from apply means
+  // we lose the structured outputs stream, but `tofu output -json` reads
+  // the refreshed state and gives us the same data cleanly.
+  const outputs = status === 'pass' ? await fetchOutputs(cwd) : {};
 
   if (existsSync(tfplanPath)) {
     unlinkSync(tfplanPath);
@@ -188,13 +155,13 @@ export async function runApplyStep(config: ParsedConfig): Promise<StepResult> {
       },
     ],
     {
-      details: buildDetailBody(config.summaryMode, events),
+      details: buildDetailBody(config.summaryMode, outputs),
       metrics: {
         added,
         changed,
         destroyed,
         imported,
-        forgotten,
+        forgotten: 0,
         has_changed: hasChanged,
       },
       outputs: {
@@ -202,7 +169,7 @@ export async function runApplyStep(config: ParsedConfig): Promise<StepResult> {
         changed: String(changed),
         destroyed: String(destroyed),
         imported: String(imported),
-        forgotten: String(forgotten),
+        forgotten: '0',
         has_changed: hasChanged ? 'true' : 'false',
       },
     },

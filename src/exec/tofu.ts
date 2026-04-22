@@ -57,3 +57,5 @@ export async function runTofu(args: string[], options: ExecOptions = {}): Promis
   const env = { ...process.env, ...options.env, GITHUB_TOKEN: '' };
   return await execFileSafe('tofu', args, { ...options, env });
 }
+
+export type { ExecResult } from './process.js';
