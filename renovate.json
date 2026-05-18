@@ -1,0 +1,78 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Renovate config for tofu-github-action. Self-contained — no shared preset. Tracks GitHub Actions (SHA-pinned with version comment) and npm dependencies. The bundled distribution and the hash-locked checkov pip lockfiles are explicitly excluded.",
+
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":rebaseStalePrs",
+    "helpers:pinGitHubActionDigests"
+  ],
+
+  "schedule": ["before 8am on the first day of the month"],
+  "timezone": "Europe/London",
+
+  "minimumReleaseAge": "7 days",
+  "prConcurrentLimit": 10,
+  "prHourlyLimit": 5,
+  "branchConcurrentLimit": 10,
+
+  "labels": ["dependencies"],
+  "fetchChangeLogs": "pr",
+  "pinDigests": true,
+  "osvVulnerabilityAlerts": true,
+  "configMigration": true,
+
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "security/checkov/**"
+  ],
+
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security", "high-priority"],
+    "minimumReleaseAge": "0 days",
+    "schedule": ["at any time"],
+    "prBodyNotes": [
+      "**Security update** — Renovate raised this PR in response to a vulnerability advisory affecting one or more direct or transitive dependencies.",
+      "The 7-day quarantine and the monthly schedule are bypassed for security-driven updates so the fix can be reviewed and merged promptly.",
+      "Review the advisory details before merging."
+    ]
+  },
+
+  "prBodyNotes": [
+    "Review release notes for breaking changes before merging.",
+    "All Renovate PRs require human review — automerge is disabled."
+  ],
+
+  "packageRules": [
+    {
+      "description": "Group all GitHub Actions bumps into a single PR per run to reduce review burden.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions",
+      "commitMessageTopic": "github actions"
+    },
+    {
+      "description": "Group npm devDependency bumps; marked chore so they don't cut semantic-releases on their own.",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "groupName": "npm devDependencies",
+      "semanticCommitType": "chore"
+    },
+    {
+      "description": "npm runtime dependencies stay separate so an action-impacting bump shows clearly in commit history.",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["dependencies"],
+      "semanticCommitType": "fix"
+    },
+    {
+      "description": "cycjimmy/semantic-release-action is load-bearing for releases — own PR so changes get explicit review.",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["cycjimmy/semantic-release-action"],
+      "groupName": null,
+      "commitMessageTopic": "cycjimmy/semantic-release-action"
+    }
+  ]
+}
