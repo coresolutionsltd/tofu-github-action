@@ -4,7 +4,7 @@ import { parseInputs } from '../../src/inputs.js';
 describe('parseInputs', () => {
   it('keeps env as the canonical deployment label', () => {
     const parsed = parseInputs({
-      version: '1.11.2',
+      version: '1.12.5',
       workdir: '.',
       env: 'prod eu-west-1',
       steps: 'validate,plan',
@@ -38,7 +38,7 @@ describe('parseInputs', () => {
   it('fails on unknown steps', () => {
     expect(() =>
       parseInputs({
-        version: '1.11.2',
+        version: '1.12.5',
         workdir: '.',
         env: '',
         steps: 'validate,explode',
@@ -70,7 +70,7 @@ describe('parseInputs', () => {
   it('rejects v1-style all and space-separated step inputs', () => {
     expect(() =>
       parseInputs({
-        version: '1.11.2',
+        version: '1.12.5',
         workdir: '.',
         env: '',
         steps: 'all',
@@ -100,7 +100,7 @@ describe('parseInputs', () => {
 
     expect(() =>
       parseInputs({
-        version: '1.11.2',
+        version: '1.12.5',
         workdir: '.',
         env: '',
         steps: 'validate plan',
@@ -131,7 +131,7 @@ describe('parseInputs', () => {
 
   it('uses strict defaults for current parsing rules', () => {
     const parsed = parseInputs({
-      version: '1.11.2',
+      version: '1.12.5',
       workdir: '.',
       env: '',
       steps: '',
@@ -158,7 +158,7 @@ describe('parseInputs', () => {
       'comment-identifier': 'tf-github-action',
     });
 
-    expect(parsed.version).toBe('1.11.2');
+    expect(parsed.version).toBe('1.12.5');
     expect(parsed.steps).toEqual(['validate', 'plan']);
     expect(parsed.tflintVersion).toBe('0.55.1');
     expect(parsed.trivyVersion).toBe('0.69.3');

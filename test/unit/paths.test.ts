@@ -6,7 +6,7 @@ import { assertWorkdirExists, resolveWorkdir } from '../../src/util/paths.js';
 import type { ParsedConfig } from '../../src/types.js';
 
 const baseConfig: ParsedConfig = {
-  version: '1.11.2',
+  version: '1.12.5',
   workdir: '.',
   env: '',
   envSlug: '',

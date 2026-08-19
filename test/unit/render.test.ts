@@ -12,7 +12,7 @@ function readSnapshot(name: string): string {
 }
 
 const config: ParsedConfig = {
-  version: '1.11.2',
+  version: '1.12.5',
   workdir: '.',
   env: 'dev',
   envSlug: 'dev',

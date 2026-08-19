@@ -546,7 +546,7 @@ function parseInputs(inputs) {
     const parsedTestTfvarFiles = splitDelimited(testTfvarFiles);
     const parsedTestTfvars = parseVars(testTfvars, 'test-tfvars');
     return {
-        version: version.trim() || '1.11.2',
+        version: version.trim() || '1.12.5',
         workdir: workdir.trim() || '.',
         env,
         envSlug: (0, sanitize_js_1.sanitizeEnvSlug)(env),

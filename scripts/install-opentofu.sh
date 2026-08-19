@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEFAULT_VERSION="1.11.2"
+DEFAULT_VERSION="1.12.5"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ACTION_ROOT="${GITHUB_ACTION_PATH:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
-BUNDLED_CHECKSUMS="${ACTION_ROOT}/security/opentofu/v1.11.2/checksums.txt"
+BUNDLED_CHECKSUMS="${ACTION_ROOT}/security/opentofu/v1.12.5/checksums.txt"
 
 hash_file() {
   if command -v sha256sum >/dev/null 2>&1; then

@@ -10,13 +10,6 @@ import { spawn } from 'node:child_process';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 
-const DEFAULTS = {
-  tofuVersion: '1.11.2',
-  tflintVersion: '0.55.1',
-  trivyVersion: '0.69.3',
-  checkovVersion: '3.2.497',
-};
-
 const OPEN_TOFU_ASSETS = [
   'tofu_%VERSION%_darwin_amd64.zip',
   'tofu_%VERSION%_darwin_arm64.zip',
@@ -80,7 +73,7 @@ function parseArgs(argv) {
     }
     index += 1;
   }
-  return { ...DEFAULTS, ...overrides };
+  return overrides;
 }
 
 function renderAsset(template, version) {
@@ -260,102 +253,127 @@ function replaceOrThrow(source, pattern, replacement, description) {
   return source.replace(pattern, replacement);
 }
 
-async function updateVersionReferences(versions) {
-  const files = [
-    join(root, 'src', 'inputs.ts'),
-    join(root, 'test', 'unit', 'inputs.test.ts'),
-    join(root, 'test', 'unit', 'main.test.ts'),
-    join(root, 'test', 'unit', 'render.test.ts'),
-    join(root, 'action.yml'),
-    join(root, 'README.md'),
+function extractActionDefault(text, inputName) {
+  const pattern = new RegExp(`${inputName}:\\n(?:.+\\n)+?\\s+default: ([^\\n]+)`);
+  const match = text.match(pattern);
+  if (!match) {
+    throw new Error(`Could not find default for ${inputName} in action.yml`);
+  }
+  return match[1].trim().replace(/^'|'$/g, '');
+}
+
+// The versions currently pinned, read from action.yml — the single source the
+// validator also reads — so every other reference is updated by exact
+// old-version -> new-version replacement instead of series-specific regexes.
+async function readCurrentVersions() {
+  const action = await readFile(join(root, 'action.yml'), 'utf8');
+  return {
+    tofuVersion: extractActionDefault(action, 'version'),
+    tflintVersion: extractActionDefault(action, 'tflint-version'),
+    trivyVersion: extractActionDefault(action, 'trivy-version'),
+    checkovVersion: extractActionDefault(action, 'checkov-version'),
+  };
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function replaceInFile(file, pairs) {
+  let text = await readFile(file, 'utf8');
+  for (const [from, to] of pairs) {
+    if (from === to) continue;
+    text = text.replaceAll(from, to);
+  }
+  await writeFile(file, text, 'utf8');
+}
+
+async function listFiles(dir, predicate) {
+  const entries = await readdir(dir, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await listFiles(path, predicate)));
+    } else if (predicate(path)) {
+      files.push(path);
+    }
+  }
+  return files;
+}
+
+async function updateVersionReferences(current, versions) {
+  // Exact-string replacement sites keyed by tool. Each tool's version only
+  // appears in these files in contexts that unambiguously refer to it
+  // (quoted literals, install-script defaults, action.yml defaults, README
+  // tables/examples), so exact replacement is safe and series-agnostic.
+  const tools = [
+    ['tofuVersion', ['src/inputs.ts', 'action.yml', 'README.md', 'scripts/install-opentofu.sh']],
+    ['tflintVersion', ['src/inputs.ts', 'action.yml', 'README.md', 'scripts/install-tflint.sh']],
+    ['trivyVersion', ['src/inputs.ts', 'action.yml', 'README.md', 'scripts/install-trivy.sh']],
+    ['checkovVersion', ['src/inputs.ts', 'action.yml', 'README.md']],
   ];
 
-  for (const file of files) {
-    let text = await readFile(file, 'utf8');
+  const testFiles = await listFiles(join(root, 'test'), (path) => path.endsWith('.ts'));
 
-    text = replaceOrThrow(
-      text,
-      /version\.trim\(\) \|\| '[^']+'/,
-      `version.trim() || '${versions.tofuVersion}'`,
-      `${file} tofu default`,
-    );
-    text = replaceOrThrow(
-      text,
-      /tflintVersion: tflintVersion\.trim\(\) \|\| '[^']+'/,
-      `tflintVersion: tflintVersion.trim() || '${versions.tflintVersion}'`,
-      `${file} tflint default`,
-    );
-    text = replaceOrThrow(
-      text,
-      /trivyVersion: trivyVersion\.trim\(\) \|\| '[^']+'/,
-      `trivyVersion: trivyVersion.trim() || '${versions.trivyVersion}'`,
-      `${file} trivy default`,
-    );
-    text = replaceOrThrow(
-      text,
-      /checkovVersion: checkovVersion\.trim\(\) \|\| '[^']+'/,
-      `checkovVersion: checkovVersion.trim() || '${versions.checkovVersion}'`,
-      `${file} checkov default`,
-    );
-
-    await writeFile(file, text, 'utf8');
+  for (const [key, files] of tools) {
+    const from = current[key];
+    const to = versions[key];
+    if (from === to) continue;
+    for (const file of [...files.map((file) => join(root, file)), ...testFiles]) {
+      await replaceInFile(file, [[from, to]]);
+    }
   }
 
-  let action = await readFile(join(root, 'action.yml'), 'utf8');
-  action = replaceOrThrow(action, /default: [0-9]+\.[0-9]+\.[0-9]+\n  tofu-checksums:/, `default: ${versions.tofuVersion}\n  tofu-checksums:`, 'action.yml tofu input default');
-  action = replaceOrThrow(action, /default: [0-9]+\.[0-9]+\.[0-9]+\n  tflint-checksums:/, `default: ${versions.tflintVersion}\n  tflint-checksums:`, 'action.yml tflint input default');
-  action = replaceOrThrow(action, /safe `[^`]+` release\.\n    required: false\n    default: [0-9]+\.[0-9]+\.[0-9]+/, `safe \`${versions.trivyVersion}\` release.\n    required: false\n    default: ${versions.trivyVersion}`, 'action.yml trivy default');
-  action = replaceOrThrow(action, /supports `[^`]+`\.\n    required: false\n    default: [0-9]+\.[0-9]+\.[0-9]+/, `supports \`${versions.checkovVersion}\`.\n    required: false\n    default: ${versions.checkovVersion}`, 'action.yml checkov default');
-  action = replaceOrThrow(action, /if \[ "\$INPUT_CHECKOV_VERSION" != "[^"]+" \]; then/, `if [ "$INPUT_CHECKOV_VERSION" != "${versions.checkovVersion}" ]; then`, 'action.yml checkov guard');
-  await writeFile(join(root, 'action.yml'), action, 'utf8');
-
-  let readme = await readFile(join(root, 'README.md'), 'utf8');
-  readme = readme
-    .replaceAll(/`1\.11\.[0-9]+`/g, `\`${versions.tofuVersion}\``)
-    .replaceAll(/`0\.55\.[0-9]+`/g, `\`${versions.tflintVersion}\``)
-    .replaceAll(/`0\.69\.[0-9]+`/g, `\`${versions.trivyVersion}\``)
-    .replaceAll(/`3\.2\.[0-9]+`/g, `\`${versions.checkovVersion}\``)
-    .replaceAll(/Default: 1\.11\.[0-9]+/g, `Default: ${versions.tofuVersion}`)
-    .replaceAll(/Default: 0\.55\.[0-9]+/g, `Default: ${versions.tflintVersion}`)
-    .replaceAll(/Default: 0\.69\.[0-9]+/g, `Default: ${versions.trivyVersion}`)
-    .replaceAll(/Default: 3\.2\.[0-9]+/g, `Default: ${versions.checkovVersion}`)
-    .replaceAll(/\| `1\.11\.[0-9]+` \|/g, `| \`${versions.tofuVersion}\` |`)
-    .replaceAll(/\| `0\.55\.[0-9]+` \|/g, `| \`${versions.tflintVersion}\` |`)
-    .replaceAll(/\| `0\.69\.[0-9]+` \|/g, `| \`${versions.trivyVersion}\` |`)
-    .replaceAll(/\| `3\.2\.[0-9]+` \|/g, `| \`${versions.checkovVersion}\` |`);
-  await writeFile(join(root, 'README.md'), readme, 'utf8');
-
-  const testFiles = [join(root, 'test', 'unit', 'main.test.ts'), join(root, 'test', 'unit', 'render.test.ts')];
-  for (const file of testFiles) {
-    let text = await readFile(file, 'utf8');
-    text = text
-      .replaceAll(/version: '1\.11\.[0-9]+'/g, `version: '${versions.tofuVersion}'`)
-      .replaceAll(/tflintVersion: '0\.55\.[0-9]+'/g, `tflintVersion: '${versions.tflintVersion}'`)
-      .replaceAll(/trivyVersion: '0\.69\.[0-9]+'/g, `trivyVersion: '${versions.trivyVersion}'`);
-
-    if (!text.includes('checkovVersion:')) {
-      text = text.replace("  trivyVersion: '" + versions.trivyVersion + "',\n", `  trivyVersion: '${versions.trivyVersion}',\n  checkovVersion: '${versions.checkovVersion}',\n`);
-    } else {
-      text = text.replaceAll(/checkovVersion: '3\.2\.[0-9]+'/g, `checkovVersion: '${versions.checkovVersion}'`);
+  // Guard against a silently missed reference: every file the validator
+  // checks must now carry the new version.
+  const action = await readFile(join(root, 'action.yml'), 'utf8');
+  for (const [inputName, key] of [
+    ['version', 'tofuVersion'],
+    ['tflint-version', 'tflintVersion'],
+    ['trivy-version', 'trivyVersion'],
+    ['checkov-version', 'checkovVersion'],
+  ]) {
+    if (extractActionDefault(action, inputName) !== versions[key]) {
+      throw new Error(`action.yml default for ${inputName} was not updated to ${versions[key]}`);
     }
-
-    await writeFile(file, text, 'utf8');
+  }
+  for (const [script, key] of [
+    ['scripts/install-opentofu.sh', 'tofuVersion'],
+    ['scripts/install-tflint.sh', 'tflintVersion'],
+    ['scripts/install-trivy.sh', 'trivyVersion'],
+  ]) {
+    const text = await readFile(join(root, script), 'utf8');
+    if (!new RegExp(`DEFAULT_VERSION="${escapeRegExp(versions[key])}"`).test(text)) {
+      throw new Error(`${script} DEFAULT_VERSION was not updated to ${versions[key]}`);
+    }
+    if (!text.includes(`/v${versions[key]}/checksums.txt`)) {
+      throw new Error(`${script} BUNDLED_CHECKSUMS path was not updated to v${versions[key]}`);
+    }
   }
 }
 
 async function main() {
-  const versions = parseArgs(process.argv.slice(2));
+  const current = await readCurrentVersions();
+  const versions = { ...current, ...parseArgs(process.argv.slice(2)) };
+
   await updateOpenTofuChecksums(versions.tofuVersion);
   await updateTflintChecksums(versions.tflintVersion);
   await updateTrivyChecksums(versions.trivyVersion);
-  await updateCheckovLock(versions.checkovVersion);
-  await updateVersionReferences(versions);
+  // The checkov lock is produced by a full pip resolution, which can move
+  // transitive pins even for the same checkov release; only regenerate it when
+  // the checkov version itself changes so a tofu/tflint/trivy bump stays
+  // reviewable.
+  if (versions.checkovVersion !== current.checkovVersion) {
+    await updateCheckovLock(versions.checkovVersion);
+  }
+  await updateVersionReferences(current, versions);
 
   console.log(`Updated security assets:
-- OpenTofu ${versions.tofuVersion}
-- TFLint ${versions.tflintVersion}
-- Trivy ${versions.trivyVersion}
-- Checkov ${versions.checkovVersion}`);
+- OpenTofu ${current.tofuVersion} -> ${versions.tofuVersion}
+- TFLint ${current.tflintVersion} -> ${versions.tflintVersion}
+- Trivy ${current.trivyVersion} -> ${versions.trivyVersion}
+- Checkov ${current.checkovVersion} -> ${versions.checkovVersion}${versions.checkovVersion === current.checkovVersion ? ' (lock unchanged)' : ''}`);
 }
 
 await main();

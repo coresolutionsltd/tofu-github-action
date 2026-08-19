@@ -3,7 +3,7 @@ import { runMain } from '../../src/main.js';
 import type { ParsedConfig, StepResult } from '../../src/types.js';
 
 const config: ParsedConfig = {
-  version: '1.11.2',
+  version: '1.12.5',
   workdir: '.',
   env: 'dev',
   envSlug: 'dev',

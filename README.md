@@ -46,7 +46,7 @@ Workflow summaries are automatically updated from each stage, making it easier t
 
 | name | description | required | default |
 | --- | --- | --- | --- |
-| `version` | <p>Exact OpenTofu version to install.</p> | `false` | `1.11.2` |
+| `version` | <p>Exact OpenTofu version to install.</p> | `false` | `1.12.5` |
 | `tofu-checksums` | <p>Optional newline-delimited SHA256 checksums for a custom OpenTofu version. Required when overriding <code>version</code>.</p> | `false` | `""` |
 | `workdir` | <p>Path to the OpenTofu configuration directory, relative to the repository root.</p> | `false` | `.` |
 | `env` | <p>Logical deployment label used for sticky comment scoping, artifact naming, and plan/apply correlation.</p> | `false` | `""` |
@@ -104,7 +104,7 @@ The most useful orchestration outputs are:
     # Exact OpenTofu version to install.
     #
     # Required: false
-    # Default: 1.11.2
+    # Default: 1.12.5
 
     tofu-checksums:
     # Optional newline-delimited SHA256 checksums for a custom OpenTofu version. Required when overriding `version`.
@@ -553,7 +553,7 @@ To bump the pinned toolchain safely, run:
 
 ```bash
 npm run update:security-assets -- \
-  --tofu-version 1.11.2 \
+  --tofu-version 1.12.5 \
   --tflint-version 0.55.1 \
   --trivy-version 0.69.3 \
   --checkov-version 3.2.497

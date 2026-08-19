@@ -8,7 +8,7 @@ import {
 import type { ParsedConfig } from '../../src/types.js';
 
 const base: ParsedConfig = {
-  version: '1.11.2',
+  version: '1.12.5',
   workdir: '.',
   env: 'dev',
   envSlug: 'dev',

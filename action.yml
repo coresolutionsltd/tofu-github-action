@@ -9,7 +9,7 @@ inputs:
   version:
     description: Exact OpenTofu version to install.
     required: false
-    default: 1.11.2
+    default: 1.12.5
   tofu-checksums:
     description: Optional newline-delimited SHA256 checksums for a custom OpenTofu version. Required when overriding `version`.
     required: false

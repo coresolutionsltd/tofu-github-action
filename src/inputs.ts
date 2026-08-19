@@ -147,7 +147,7 @@ export function parseInputs(inputs: InputMap): ParsedConfig {
   const parsedTestTfvars = parseVars(testTfvars, 'test-tfvars');
 
   return {
-    version: version.trim() || '1.11.2',
+    version: version.trim() || '1.12.5',
     workdir: workdir.trim() || '.',
     env,
     envSlug: sanitizeEnvSlug(env),
